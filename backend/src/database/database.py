@@ -72,7 +72,7 @@ def get_student(student_id: str) -> Optional[Dict[str, Any]]:
 
 def get_students_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
     """
-    Get all students in a classroom (using many-to-many relationship).
+    Get all students in a classroom (using many-to-many relationship) (using many-to-many relationship).
     
     Args:
         classroom_id: UUID of the classroom
@@ -325,6 +325,83 @@ def is_student_in_classroom(student_id: str, classroom_id: str) -> bool:
 
 
 # ============================================
+# STUDENT-CLASSROOM RELATIONSHIP FUNCTIONS
+# ============================================
+
+def add_student_to_classroom(student_id: str, classroom_id: str) -> Dict[str, Any]:
+    """
+    Add a student to a classroom (many-to-many).
+    
+    Args:
+        student_id: UUID of the student
+        classroom_id: UUID of the classroom
+    
+    Returns:
+        Created relationship record
+    """
+    data = {
+        "student_id": student_id,
+        "classroom_id": classroom_id
+    }
+    
+    response = supabase.table("student_classrooms").insert(data).execute()
+    return response.data[0] if response.data else None
+
+
+def remove_student_from_classroom(student_id: str, classroom_id: str) -> bool:
+    """
+    Remove a student from a classroom.
+    
+    Args:
+        student_id: UUID of the student
+        classroom_id: UUID of the classroom
+    
+    Returns:
+        True if successful
+    """
+    response = supabase.table("student_classrooms").delete().eq(
+        "student_id", student_id
+    ).eq("classroom_id", classroom_id).execute()
+    return len(response.data) > 0
+
+
+def get_classrooms_by_student(student_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all classrooms a student is enrolled in.
+    
+    Args:
+        student_id: UUID of the student
+    
+    Returns:
+        List of classroom records
+    """
+    response = supabase.table("student_classrooms").select(
+        "classrooms(*)"
+    ).eq("student_id", student_id).execute()
+    
+    # Extract classroom data from nested structure
+    classrooms = [item["classrooms"] for item in response.data if item.get("classrooms")]
+    return classrooms
+
+
+def is_student_in_classroom(student_id: str, classroom_id: str) -> bool:
+    """
+    Check if a student is enrolled in a classroom.
+    
+    Args:
+        student_id: UUID of the student
+        classroom_id: UUID of the classroom
+    
+    Returns:
+        True if student is in classroom
+    """
+    response = supabase.table("student_classrooms").select("id").eq(
+        "student_id", student_id
+    ).eq("classroom_id", classroom_id).execute()
+    return len(response.data) > 0
+
+
+# ============================================
 # UTILITY FUNCTIONS
 # ============================================
 
@@ -443,3 +520,86 @@ def get_classroom_full_story(classroom_id: str) -> Optional[Dict[str, Any]]:
     
     classroom["chapters"] = chapters
     return classroom
+
+
+# ============================================
+# MATERIAL FUNCTIONS
+# ============================================
+
+def create_material(
+    classroom_id: str,
+    title: str,
+    file_url: str,
+    file_type: str,
+    description: Optional[str] = None,
+    week_number: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Create a new material for a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        title: Title of the material
+        file_url: URL to the uploaded file
+        file_type: Type of file (e.g., 'application/pdf')
+        description: Optional description
+        week_number: Optional week number
+    
+    Returns:
+        Created material record
+    """
+    data = {
+        "classroom_id": classroom_id,
+        "title": title,
+        "file_url": file_url,
+        "file_type": file_type,
+        "description": description,
+        "week_number": week_number
+    }
+    
+    response = supabase.table("materials").insert(data).execute()
+    return response.data[0] if response.data else None
+
+
+def get_materials_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all materials for a classroom, ordered by creation date.
+    
+    Args:
+        classroom_id: UUID of the classroom
+    
+    Returns:
+        List of material records ordered by created_at (newest first)
+    """
+    response = supabase.table("materials").select("*").eq(
+        "classroom_id", classroom_id
+    ).order("created_at", desc=True).execute()
+    return response.data
+
+
+def get_material(material_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get a material by ID.
+    
+    Args:
+        material_id: UUID of the material
+    
+    Returns:
+        Material record or None if not found
+    """
+    response = supabase.table("materials").select("*").eq("id", material_id).execute()
+    return response.data[0] if response.data else None
+
+
+def delete_material(material_id: str) -> bool:
+    """
+    Delete a material.
+    
+    Args:
+        material_id: UUID of the material
+    
+    Returns:
+        True if successful
+    """
+    response = supabase.table("materials").delete().eq("id", material_id).execute()
+    return len(response.data) > 0

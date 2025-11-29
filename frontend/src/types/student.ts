@@ -1,6 +1,5 @@
 export interface Student {
   id: string;
-  classroom_id: string;
   name: string;
   interests: string;
   avatar_url: string | null;
@@ -8,8 +7,14 @@ export interface Student {
   created_at: string;
 }
 
-export interface StudentCreate {
-  classroom_id: string;
-  name: string;
-  interests: string;
+export interface StudentWithClassrooms extends Student {
+  classrooms: Array<{
+    id: string;
+    name: string;
+    subject: string;
+    grade_level: string;
+    story_theme: string;
+    design_style: string;
+    created_at: string;
+  }>;
 }

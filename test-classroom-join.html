@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Classroom Join</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Classroom Join API Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Fetch Classroom by ID</h2>
+        <p>Classroom ID: <code>942f3ae3-1dbd-4b7c-afd3-135b3e386de1</code></p>
+        <button onclick="testFetchClassroom()">Test Fetch Classroom</button>
+        <div id="fetch-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Join Classroom</h2>
+        <p>Student ID: <input type="text" id="student-id" placeholder="Enter student ID" style="width: 300px;"></p>
+        <p>Classroom ID: <code>942f3ae3-1dbd-4b7c-afd3-135b3e386de1</code></p>
+        <button onclick="testJoinClassroom()">Test Join Classroom</button>
+        <div id="join-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Check API Connection</h2>
+        <button onclick="testAPIConnection()">Test API Health</button>
+        <div id="health-result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        const CLASSROOM_ID = '942f3ae3-1dbd-4b7c-afd3-135b3e386de1';
+
+        async function testAPIConnection() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <p class="success">✅ API is reachable!</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Failed to connect to API</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testFetchClassroom() {
+            const resultDiv = document.getElementById('fetch-result');
+            resultDiv.innerHTML = '<p>Fetching classroom...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/classrooms/${CLASSROOM_ID}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <p class="success">✅ Classroom fetched successfully!</p>
+                    <p><strong>Name:</strong> ${data.classroom.name}</p>
+                    <p><strong>Subject:</strong> ${data.classroom.subject}</p>
+                    <p><strong>Students:</strong> ${data.classroom.students.length}</p>
+                    <details>
+                        <summary>Full Response</summary>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Failed to fetch classroom</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testJoinClassroom() {
+            const studentId = document.getElementById('student-id').value;
+            const resultDiv = document.getElementById('join-result');
+            
+            if (!studentId) {
+                resultDiv.innerHTML = '<p class="error">❌ Please enter a student ID</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Joining classroom...</p>';
+            
+            try {
+                const response = await fetch(
+                    `${API_BASE_URL}/students/${studentId}/join-classroom/${CLASSROOM_ID}`,
+                    { method: 'POST' }
+                );
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <p class="success">✅ ${data.message}</p>
+                    <p><strong>Student:</strong> ${data.student.name}</p>
+                    <p><strong>Classroom:</strong> ${data.classroom.name}</p>
+                    <details>
+                        <summary>Full Response</summary>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Failed to join classroom</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        // Auto-test API connection on load
+        window.addEventListener('load', testAPIConnection);
+    </script>
+</body>
+</html>

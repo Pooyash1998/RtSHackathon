@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Users, BookOpen } from "lucide-react";
+import { Plus, Users, BookOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 interface Classroom {
   id: string;
@@ -14,50 +16,48 @@ interface Classroom {
   story_count: number;
 }
 
-const mockClassrooms: Classroom[] = [
-  {
-    id: "1",
-    name: "Physics 101",
-    subject: "Physics",
-    grade_level: "10",
-    student_count: 24,
-    story_count: 8
-  },
-  {
-    id: "2",
-    name: "Advanced Math",
-    subject: "Math",
-    grade_level: "11",
-    student_count: 18,
-    story_count: 12
-  },
-  {
-    id: "3",
-    name: "World History",
-    subject: "History",
-    grade_level: "9",
-    student_count: 30,
-    story_count: 5
-  }
-];
-
 const subjectColors: Record<string, string> = {
   Physics: "bg-blue-500",
   Math: "bg-purple-500",
   History: "bg-amber-500",
   English: "bg-green-500",
   Chemistry: "bg-cyan-500",
-  Biology: "bg-emerald-500"
+  Biology: "bg-emerald-500",
+  Science: "bg-teal-500",
 };
 
 const TeacherDashboard = () => {
-  const [classrooms] = useState<Classroom[]>(mockClassrooms);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClassrooms = async () => {
+      try {
+        setIsLoading(true);
+        const response = await api.classrooms.getAll();
+        setClassrooms(response.classrooms);
+      } catch (error) {
+        console.error("Failed to fetch classrooms:", error);
+        toast.error("Failed to load classrooms");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchClassrooms();
+  }, []);
 
   return (
     <div className="min-h-screen bg-muted/20">
       {/* Main Content */}
       <div className="container mx-auto px-4 py-12">
-        {classrooms.length === 0 ? (
+        {isLoading ? (
+          /* Loading State */
+          <div className="flex flex-col items-center justify-center py-24 space-y-6">
+            <Loader2 className="w-16 h-16 text-primary animate-spin" />
+            <p className="text-muted-foreground">Loading classrooms...</p>
+          </div>
+        ) : classrooms.length === 0 ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center py-24 space-y-6">
             <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center">

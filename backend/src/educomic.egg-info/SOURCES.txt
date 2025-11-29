@@ -14,3 +14,5 @@ src/services/chapter.py
 src/services/comic_creation.py
 src/services/flux_test.py
 src/services/story_idea.py
+src/services/story_idea.py
+src/services/test_story_idea.py
