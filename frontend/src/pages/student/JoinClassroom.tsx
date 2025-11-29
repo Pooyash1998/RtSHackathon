@@ -65,12 +65,34 @@ const JoinClassroom = () => {
     const handleJoin = () => {
         if (!agreedToTerms) return;
 
-        // Store classroom ID in session storage and navigate to signup
-        sessionStorage.setItem('pendingClassroomId', classroom.id);
-        sessionStorage.setItem('pendingClassroomName', classroom.name);
+        // Check if student is already logged in (has student ID in localStorage)
+        const studentId = localStorage.getItem('studentId');
         
-        // Navigate to student signup with classroom context
-        navigate('/student/signup');
+        if (studentId) {
+            // Student already has account, join classroom directly
+            joinClassroomDirectly(studentId);
+        } else {
+            // Store classroom ID in session storage and navigate to signup
+            sessionStorage.setItem('pendingClassroomId', classroom.id);
+            sessionStorage.setItem('pendingClassroomName', classroom.name);
+            
+            // Navigate to student signup with classroom context
+            navigate('/student/signup');
+        }
+    };
+
+    const joinClassroomDirectly = async (studentId: string) => {
+        setIsLoading(true);
+        try {
+            await api.students.joinClassroom(studentId, classroom.id);
+            toast.success(`Joined ${classroom.name}!`);
+            navigate(`/student/dashboard/${studentId}`);
+        } catch (error) {
+            console.error("Failed to join classroom:", error);
+            toast.error("Failed to join classroom. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const subjectColors: Record<string, string> = {

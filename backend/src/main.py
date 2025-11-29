@@ -237,27 +237,60 @@ async def upload_student_photo(
     import uuid
     
     try:
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid file type: {file.content_type}. Allowed: {', '.join(allowed_types)}"
+            )
+        
         # Read file content
         file_content = await file.read()
+        
+        # Validate file size (max 10MB)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if len(file_content) > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large: {len(file_content)} bytes. Max: {max_size} bytes (10MB)"
+            )
         
         # Generate unique filename
         file_ext = filename.split('.')[-1] if '.' in filename else 'jpg'
         unique_filename = f"{uuid.uuid4()}.{file_ext}"
         
+        print(f"Uploading photo: {unique_filename}, size: {len(file_content)} bytes, type: {file.content_type}")
+        
         # Upload to Supabase storage
-        response = supabase.storage.from_("StudentPhotos").upload(
-            unique_filename,
-            file_content,
-            {"content-type": file.content_type or f"image/{file_ext}"}
-        )
+        try:
+            response = supabase.storage.from_("StudentPhotos").upload(
+                unique_filename,
+                file_content,
+                {"content-type": file.content_type or f"image/{file_ext}"}
+            )
+            
+            # Check for upload errors
+            if hasattr(response, 'error') and response.error:
+                raise Exception(f"Supabase upload error: {response.error}")
+                
+        except Exception as upload_error:
+            print(f"Upload error: {upload_error}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Supabase upload failed: {str(upload_error)}. Check storage bucket permissions."
+            )
         
         # Get public URL
         public_url = supabase.storage.from_("StudentPhotos").get_public_url(unique_filename)
+        
+        print(f"Photo uploaded successfully: {public_url}")
         
         return {"success": True, "photo_url": public_url}
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to upload photo: {str(e)}")
 
 @app.get("/students/{student_id}")

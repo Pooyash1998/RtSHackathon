@@ -45,41 +45,86 @@ const StudentSignup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid || !pendingClassroom) return;
+    if (!isFormValid) return;
 
     setIsSubmitting(true);
 
     try {
-      // Upload photo if provided
+      // STEP 1: Upload photo FIRST (if provided)
       let photoUrl: string | undefined;
       if (photo) {
-        toast.info("Uploading photo...");
-        const uploadResponse = await api.students.uploadPhoto(photo);
-        photoUrl = uploadResponse.photo_url;
+        try {
+          toast.info("📸 Uploading your photo...");
+          console.log("Uploading photo:", photo.name, photo.size, "bytes");
+          
+          const uploadResponse = await api.students.uploadPhoto(photo);
+          photoUrl = uploadResponse.photo_url;
+          
+          console.log("✅ Photo uploaded successfully:", photoUrl);
+          toast.success("Photo uploaded!");
+        } catch (uploadError) {
+          console.error("❌ Photo upload failed:", uploadError);
+          toast.error("Photo upload failed. Please try again or continue without photo.");
+          setIsSubmitting(false);
+          return; // Stop if photo upload fails
+        }
       }
 
-      // Create student account
+      // STEP 2: Create student account with the uploaded photo URL
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      toast.info("Creating your account...");
+      toast.info("👤 Creating your account...");
+      
+      console.log("Creating student:", { 
+        fullName, 
+        interests: interests.trim(), 
+        photoUrl: photoUrl || 'none' 
+      });
       
       const response = await api.students.create(
-        pendingClassroom.id,
         fullName,
         interests.trim(),
-        photoUrl
+        photoUrl  // Photo URL from Step 1
       );
+      
+      console.log("✅ Student created:", response.student);
+      
+      // STEP 3: Avatar generation happens automatically in backend
+      if (response.student.avatar_url) {
+        toast.success("🎨 Avatar generated!");
+      } else {
+        toast.info("Avatar will be generated shortly...");
+      }
 
-      // Clear session storage
-      sessionStorage.removeItem('pendingClassroomId');
-      sessionStorage.removeItem('pendingClassroomName');
+      const studentId = response.student.id;
 
-      toast.success("Account created successfully!");
+      // STEP 4: Join classroom if pending
+      if (pendingClassroom) {
+        toast.info(`🏫 Joining ${pendingClassroom.name}...`);
+        await api.students.joinClassroom(studentId, pendingClassroom.id);
+        
+        // Clear session storage
+        sessionStorage.removeItem('pendingClassroomId');
+        sessionStorage.removeItem('pendingClassroomName');
+        
+        toast.success(`Joined ${pendingClassroom.name}!`);
+      }
+
+      toast.success("✅ Account created successfully!");
+
+      // Store student ID in localStorage for future logins
+      localStorage.setItem('studentId', studentId);
 
       // Navigate to student dashboard
-      navigate(`/student/dashboard/${response.student.id}`);
+      navigate(`/student/dashboard/${studentId}`);
     } catch (error) {
-      console.error("Failed to create student:", error);
-      toast.error("Failed to create account. Please try again.");
+      console.error("❌ Failed to create student:", error);
+      
+      // Show detailed error message
+      const errorMessage = error instanceof Error ? error.message : "Failed to create account";
+      toast.error(errorMessage);
+      
+      // Log full error for debugging
+      console.error("Full error details:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -202,7 +247,7 @@ const StudentSignup = () => {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={!isFormValid || isSubmitting || !pendingClassroom}
+                disabled={!isFormValid || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
@@ -217,12 +262,6 @@ const StudentSignup = () => {
               {!isFormValid && (
                 <p className="text-sm text-center text-muted-foreground">
                   Please fill in all required fields
-                </p>
-              )}
-              
-              {!pendingClassroom && (
-                <p className="text-sm text-center text-destructive">
-                  Please join a classroom first
                 </p>
               )}
             </form>

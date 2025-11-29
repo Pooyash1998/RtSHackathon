@@ -137,7 +137,23 @@ export const api = {
 
   // Students
   students: {
-    create: (classroomId: string, name: string, interests: string, photoUrl?: string) =>
+    create: (name: string, interests: string, photoUrl?: string) =>
+      apiFetch<{
+        success: boolean;
+        student: {
+          id: string;
+          classroom_id: string | null;
+          name: string;
+          interests: string;
+          photo_url: string | null;
+          avatar_url: string | null;
+          created_at: string;
+        };
+      }>(`/students/create?name=${encodeURIComponent(name)}&interests=${encodeURIComponent(interests)}${photoUrl ? `&photo_url=${encodeURIComponent(photoUrl)}` : ''}`, {
+        method: 'POST',
+      }),
+    
+    joinClassroom: (studentId: string, classroomId: string) =>
       apiFetch<{
         success: boolean;
         student: {
@@ -149,7 +165,14 @@ export const api = {
           avatar_url: string | null;
           created_at: string;
         };
-      }>(`/students/create?classroom_id=${classroomId}&name=${encodeURIComponent(name)}&interests=${encodeURIComponent(interests)}${photoUrl ? `&photo_url=${encodeURIComponent(photoUrl)}` : ''}`, {
+        classroom: {
+          id: string;
+          name: string;
+          subject: string;
+          grade_level: string;
+          story_theme: string;
+        };
+      }>(`/students/${studentId}/join-classroom/${classroomId}`, {
         method: 'POST',
       }),
     
