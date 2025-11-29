@@ -10,7 +10,7 @@ CREATE TABLE classrooms (
     subject TEXT NOT NULL,
     grade_level TEXT NOT NULL,
     story_theme TEXT NOT NULL,
-    design_style TEXT NOT NULL CHECK (design_style IN ('manga', 'comic', 'cartoon')),
+    design_style TEXT NOT NULL CHECK (design_style IN ('manga', 'comic')),
     duration TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -26,49 +26,47 @@ CREATE TABLE students (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Stories table
-CREATE TABLE stories (
+-- Chapters table
+CREATE TABLE chapters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
-    lesson_prompt TEXT NOT NULL,
-    title TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('generating', 'completed', 'failed', 'regenerating')),
-    progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    index INTEGER NOT NULL CHECK (index >= 1),
+    chapter_outline TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(classroom_id, index)
 );
 
 -- Panels table
 CREATE TABLE panels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
-    panel_number INTEGER NOT NULL CHECK (panel_number >= 1 AND panel_number <= 20),
-    image_url TEXT NOT NULL,
-    dialogue TEXT NOT NULL,
-    scene_description TEXT NOT NULL,
+    chapter_id UUID NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+    index INTEGER NOT NULL CHECK (index >= 1),
+    image TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(story_id, panel_number)
+    UNIQUE(chapter_id, index)
 );
 
 -- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 CREATE INDEX idx_students_classroom ON students(classroom_id);
-CREATE INDEX idx_stories_classroom ON stories(classroom_id);
-CREATE INDEX idx_stories_status ON stories(status);
-CREATE INDEX idx_panels_story ON panels(story_id);
-CREATE INDEX idx_panels_story_number ON panels(story_id, panel_number);
+CREATE INDEX idx_chapters_classroom ON chapters(classroom_id);
+CREATE INDEX idx_chapters_classroom_index ON chapters(classroom_id, index);
+CREATE INDEX idx_panels_chapter ON panels(chapter_id);
+CREATE INDEX idx_panels_chapter_index ON panels(chapter_id, index);
 
 -- ============================================
 -- COMMENTS FOR DOCUMENTATION
 -- ============================================
 COMMENT ON TABLE classrooms IS 'Virtual classrooms created by teachers';
 COMMENT ON TABLE students IS 'Students who join classrooms and appear in stories';
-COMMENT ON TABLE stories IS 'AI-generated comic stories based on lesson content';
-COMMENT ON TABLE panels IS 'Individual comic panels (20 per story)';
+COMMENT ON TABLE chapters IS 'Chapters within a classroom story';
+COMMENT ON TABLE panels IS 'Comic panels within each chapter';
 
 COMMENT ON COLUMN classrooms.design_style IS 'Visual style: manga, comic, or cartoon';
 COMMENT ON COLUMN students.avatar_url IS 'FLUX-generated character avatar';
 COMMENT ON COLUMN students.photo_url IS 'Optional uploaded student photo';
-COMMENT ON COLUMN stories.status IS 'Generation status: generating, completed, failed, regenerating';
-COMMENT ON COLUMN stories.progress IS 'Generation progress: 0-100';
-COMMENT ON COLUMN panels.panel_number IS 'Sequential panel number: 1-20';
+COMMENT ON COLUMN chapters.index IS 'Sequential chapter number starting from 1';
+COMMENT ON COLUMN chapters.chapter_outline IS 'Outline/description of the chapter content';
+COMMENT ON COLUMN panels.index IS 'Sequential panel number within the chapter starting from 1';
+COMMENT ON COLUMN panels.image IS 'URL of the panel image';

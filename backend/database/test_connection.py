@@ -22,7 +22,7 @@ try:
     print(f"📊 Found {len(response.data)} classrooms in database")
     
     # Test each table
-    tables = ["classrooms", "students", "stories", "panels"]
+    tables = ["classrooms", "students", "chapters", "panels"]
     print("\n📋 Table status:")
     for table in tables:
         try:

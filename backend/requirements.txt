@@ -25,3 +25,6 @@ hypothesis==6.98.3
 
 # Environment variables
 python-dotenv==1.0.0
+
+# Black Forest Labs API
+# httpx already included above
