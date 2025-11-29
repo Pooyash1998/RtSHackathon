@@ -152,7 +152,34 @@ async def get_story_with_panels_and_students(story_id: str) -> Optional[Dict[str
 
 
 # ============================================
-# STORAGE OPERATIONS (for images)
+# MATERIAL OPERATIONS
+# ============================================
+
+async def insert_material(material_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new material record."""
+    response = supabase.table("materials").insert(material_data).execute()
+    return response.data[0]
+
+
+async def get_materials_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
+    """Get all materials for a classroom."""
+    response = supabase.table("materials").select("*").eq("classroom_id", classroom_id).order("created_at", desc=True).execute()
+    return response.data
+
+
+async def get_materials_by_week(classroom_id: str, week_number: int) -> List[Dict[str, Any]]:
+    """Get materials for a specific week."""
+    response = supabase.table("materials").select("*").eq("classroom_id", classroom_id).eq("week_number", week_number).execute()
+    return response.data
+
+
+async def delete_material(material_id: str) -> None:
+    """Delete a material record."""
+    supabase.table("materials").delete().eq("id", material_id).execute()
+
+
+# ============================================
+# STORAGE OPERATIONS (for images and PDFs)
 # ============================================
 
 def upload_file_to_storage(bucket: str, file_path: str, file_data: bytes) -> str:
