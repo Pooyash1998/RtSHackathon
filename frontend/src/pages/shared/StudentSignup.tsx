@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-
-const StudentSignup = () => {
-  const navigate = useNavigate();
-=======
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, User } from "lucide-react";
@@ -56,7 +47,6 @@ const StudentSignup = () => {
     // After creating account, go to dashboard
     navigate(`/student/dashboard/${mockStudentId}`);
   };
->>>>>>> 302670a (initial student page commit)
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -69,19 +59,6 @@ const StudentSignup = () => {
         </div>
       </header>
 
-<<<<<<< HEAD
-      <div className="container mx-auto px-4 py-24 max-w-md">
-        <Card>
-          <CardContent className="pt-12 pb-12 text-center space-y-6">
-            <div className="text-6xl mb-4">🎓</div>
-            <h1 className="text-3xl font-bold text-foreground">Student Portal</h1>
-            <p className="text-muted-foreground">
-              Student sign-up and dashboard coming soon! Ask your teacher for the classroom invite link.
-            </p>
-            <Button onClick={() => navigate("/")} variant="outline">
-              Return Home
-            </Button>
-=======
       <div className="container mx-auto px-4 py-12 max-w-2xl">
         <Card className="backdrop-blur-lg bg-card/70 border-2 border-border/50">
           <CardContent className="pt-8 pb-8 space-y-6">
@@ -202,7 +179,6 @@ const StudentSignup = () => {
                 Sign In
               </Button>
             </div>
->>>>>>> 302670a (initial student page commit)
           </CardContent>
         </Card>
       </div>
