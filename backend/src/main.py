@@ -126,32 +126,33 @@ async def get_classroom_chapters(classroom_id: str):
 
 @app.post("/students/create")
 async def create_student(
-    classroom_id: str,
     name: str,
     interests: str,
     photo_url: str = None
 ):
     """
-    Create a new student and add them to a classroom.
+    Create a new student account (without classroom).
+    Photo must be uploaded first, then this endpoint creates the student
+    and generates their avatar.
     
     Args:
-        classroom_id: UUID of the classroom to join
         name: Student's full name
         interests: Student's interests/hobbies
-        photo_url: Optional URL to student's photo
+        photo_url: URL to student's photo (should be uploaded first)
         
     Returns:
-        Created student record
+        Created student record with generated avatar
     """
     from database.database import supabase
+    from services.avatar import generate_avatar
     
     try:
-        # Create student record
+        # Step 1: Create student record with photo_url
         student_data = {
-            "classroom_id": classroom_id,
             "name": name,
             "interests": interests,
-            "photo_url": photo_url
+            "photo_url": photo_url,  # Real photo saved first
+            "classroom_id": None  # No classroom initially
         }
         
         response = supabase.table("students").insert(student_data).execute()
@@ -160,11 +161,62 @@ async def create_student(
             raise HTTPException(status_code=500, detail="Failed to create student")
         
         student = response.data[0]
+        student_id = student["id"]
+        
+        # Step 2: Generate avatar based on the student's photo and interests
+        # This will update the avatar_url in the database
+        try:
+            student = await generate_avatar(student_id)
+        except Exception as e:
+            print(f"Avatar generation failed: {e}")
+            # Continue even if avatar generation fails
+            # Student still has their real photo
+        
         return {"success": True, "student": student}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create student: {str(e)}")
+
+@app.post("/students/{student_id}/join-classroom/{classroom_id}")
+async def join_classroom(student_id: str, classroom_id: str):
+    """
+    Add a student to a classroom.
+    
+    Args:
+        student_id: UUID of the student
+        classroom_id: UUID of the classroom to join
+        
+    Returns:
+        Updated student record
+    """
+    from database.database import supabase, get_classroom, get_student
+    
+    try:
+        # Verify classroom exists
+        classroom = get_classroom(classroom_id)
+        if not classroom:
+            raise HTTPException(status_code=404, detail="Classroom not found")
+        
+        # Verify student exists
+        student = get_student(student_id)
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+        
+        # Update student's classroom
+        response = supabase.table("students").update({
+            "classroom_id": classroom_id
+        }).eq("id", student_id).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to join classroom")
+        
+        updated_student = response.data[0]
+        return {"success": True, "student": updated_student, "classroom": classroom}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to join classroom: {str(e)}")
 
 @app.post("/students/upload-photo")
 async def upload_student_photo(
@@ -211,21 +263,27 @@ async def upload_student_photo(
 @app.get("/students/{student_id}")
 async def get_student(student_id: str):
     """
-    Get a student by ID.
+    Get a student by ID with their classroom info.
     
     Args:
         student_id: UUID of the student
         
     Returns:
-        Student record
+        Student record with classroom details
     """
-    from database.database import get_student
+    from database.database import get_student, get_classroom
     
     try:
         student = get_student(student_id)
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
-        return {"success": True, "student": student}
+        
+        # Get classroom info if student is in a classroom
+        classroom = None
+        if student.get("classroom_id"):
+            classroom = get_classroom(student["classroom_id"])
+        
+        return {"success": True, "student": student, "classroom": classroom}
     except HTTPException:
         raise
     except Exception as e:
