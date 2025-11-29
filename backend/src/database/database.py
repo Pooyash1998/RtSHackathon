@@ -417,3 +417,86 @@ def get_classroom_full_story(classroom_id: str) -> Optional[Dict[str, Any]]:
     
     classroom["chapters"] = chapters
     return classroom
+
+
+# ============================================
+# MATERIAL FUNCTIONS
+# ============================================
+
+def create_material(
+    classroom_id: str,
+    title: str,
+    file_url: str,
+    file_type: str,
+    description: Optional[str] = None,
+    week_number: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Create a new material for a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        title: Title of the material
+        file_url: URL to the uploaded file
+        file_type: Type of file (e.g., 'application/pdf')
+        description: Optional description
+        week_number: Optional week number
+    
+    Returns:
+        Created material record
+    """
+    data = {
+        "classroom_id": classroom_id,
+        "title": title,
+        "file_url": file_url,
+        "file_type": file_type,
+        "description": description,
+        "week_number": week_number
+    }
+    
+    response = supabase.table("materials").insert(data).execute()
+    return response.data[0] if response.data else None
+
+
+def get_materials_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all materials for a classroom, ordered by creation date.
+    
+    Args:
+        classroom_id: UUID of the classroom
+    
+    Returns:
+        List of material records ordered by created_at (newest first)
+    """
+    response = supabase.table("materials").select("*").eq(
+        "classroom_id", classroom_id
+    ).order("created_at", desc=True).execute()
+    return response.data
+
+
+def get_material(material_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get a material by ID.
+    
+    Args:
+        material_id: UUID of the material
+    
+    Returns:
+        Material record or None if not found
+    """
+    response = supabase.table("materials").select("*").eq("id", material_id).execute()
+    return response.data[0] if response.data else None
+
+
+def delete_material(material_id: str) -> bool:
+    """
+    Delete a material.
+    
+    Args:
+        material_id: UUID of the material
+    
+    Returns:
+        True if successful
+    """
+    response = supabase.table("materials").delete().eq("id", material_id).execute()
+    return len(response.data) > 0

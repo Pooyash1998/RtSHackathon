@@ -106,6 +106,70 @@ export const api = {
           created_at: string;
         }>;
       }>(`/classrooms/${classroomId}/chapters`),
+    
+    getMaterials: (classroomId: string) =>
+      apiFetch<{
+        success: boolean;
+        materials: Array<{
+          id: string;
+          classroom_id: string;
+          title: string;
+          description: string | null;
+          file_url: string;
+          file_type: string;
+          week_number: number | null;
+          created_at: string;
+        }>;
+      }>(`/classrooms/${classroomId}/materials`),
+    
+    uploadMaterial: async (
+      classroomId: string,
+      file: File,
+      title: string,
+      description?: string,
+      weekNumber?: number
+    ) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', title);
+      if (description) formData.append('description', description);
+      if (weekNumber) formData.append('week_number', weekNumber.toString());
+      
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/materials/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+        throw new Error(error.detail || 'Failed to upload material');
+      }
+      
+      return await response.json() as {
+        success: boolean;
+        material: {
+          id: string;
+          classroom_id: string;
+          title: string;
+          description: string | null;
+          file_url: string;
+          file_type: string;
+          week_number: number | null;
+          created_at: string;
+        };
+      };
+    },
+    
+    deleteMaterial: (materialId: string) =>
+      apiFetch<{
+        success: boolean;
+        message: string;
+      }>(`/materials/${materialId}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Story generation

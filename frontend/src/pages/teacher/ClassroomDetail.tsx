@@ -58,6 +58,8 @@ const ClassroomDetail = () => {
   const [studentViewMode, setStudentViewMode] = useState<"grid" | "list">("grid");
   const [isDragging, setIsDragging] = useState(false);
   const [materials, setMaterials] = useState<MaterialFile[]>([]);
+  const [uploadedMaterials, setUploadedMaterials] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const fetchClassroomData = async () => {
@@ -87,6 +89,10 @@ const ClassroomDetail = () => {
         // Fetch chapters
         const chaptersResponse = await api.classrooms.getChapters(id);
         setChapters(chaptersResponse.chapters);
+        
+        // Fetch materials
+        const materialsResponse = await api.classrooms.getMaterials(id);
+        setUploadedMaterials(materialsResponse.materials);
       } catch (error) {
         console.error("Failed to fetch classroom data:", error);
         toast.error("Failed to load classroom data");
@@ -182,6 +188,44 @@ const ClassroomDetail = () => {
 
   const removeMaterial = (index: number) => {
     setMaterials(materials.filter((_, i) => i !== index));
+  };
+
+  const handleUploadMaterials = async () => {
+    if (!id) return;
+    
+    setIsUploading(true);
+    try {
+      // Upload each material
+      for (const materialFile of materials) {
+        if (!materialFile.title.trim()) {
+          toast.error(`Please provide a title for ${materialFile.file.name}`);
+          setIsUploading(false);
+          return;
+        }
+        
+        await api.classrooms.uploadMaterial(
+          id,
+          materialFile.file,
+          materialFile.title,
+          materialFile.description || undefined
+        );
+      }
+      
+      toast.success(`${materials.length} material${materials.length > 1 ? 's' : ''} uploaded successfully!`);
+      
+      // Clear the materials list
+      setMaterials([]);
+      
+      // Refresh uploaded materials
+      const materialsResponse = await api.classrooms.getMaterials(id);
+      setUploadedMaterials(materialsResponse.materials);
+      
+    } catch (error) {
+      console.error("Failed to upload materials:", error);
+      toast.error("Failed to upload materials. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Get calendar week from date
@@ -610,10 +654,67 @@ const ClassroomDetail = () => {
                     </label>
                   </div>
 
-                  {/* Uploaded Materials List */}
+                  {/* Existing Uploaded Materials */}
+                  {uploadedMaterials.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-foreground">Existing Materials ({uploadedMaterials.length})</h3>
+                      <div className="space-y-3">
+                        {uploadedMaterials.map((material) => (
+                          <Card key={material.id} className="backdrop-blur-lg bg-card/70 border-border/50">
+                            <CardContent className="pt-4 pb-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className="w-10 h-10 rounded bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xl">📄</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-foreground">{material.title}</p>
+                                    {material.description && (
+                                      <p className="text-sm text-muted-foreground line-clamp-1">{material.description}</p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                      Uploaded {new Date(material.created_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => window.open(material.file_url, '_blank')}
+                                  >
+                                    View
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (confirm('Are you sure you want to delete this material?')) {
+                                        try {
+                                          await api.classrooms.deleteMaterial(material.id);
+                                          setUploadedMaterials(uploadedMaterials.filter(m => m.id !== material.id));
+                                          toast.success('Material deleted');
+                                        } catch (error) {
+                                          toast.error('Failed to delete material');
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* New Materials to Upload */}
                   {materials.length > 0 && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-foreground">Uploaded Materials ({materials.length})</h3>
+                      <h3 className="text-lg font-semibold text-foreground">New Materials to Upload ({materials.length})</h3>
                       <div className="space-y-4">
                         {materials.map((materialFile, index) => (
                           <Card key={index} className="backdrop-blur-lg bg-card/70 border-border/50">
@@ -665,9 +766,22 @@ const ClassroomDetail = () => {
                           </Card>
                         ))}
                       </div>
-                      <Button className="w-full backdrop-blur-sm">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Save {materials.length} Material{materials.length > 1 ? 's' : ''}
+                      <Button 
+                        className="w-full backdrop-blur-sm" 
+                        onClick={handleUploadMaterials}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload {materials.length} Material{materials.length > 1 ? 's' : ''}
+                          </>
+                        )}
                       </Button>
                     </div>
                   )}

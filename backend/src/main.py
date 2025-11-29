@@ -460,3 +460,167 @@ async def create_story_endpoint(classroom_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Story creation failed: {str(e)}")
 
+
+
+@app.get("/classrooms/{classroom_id}/materials")
+async def get_classroom_materials(classroom_id: str):
+    """
+    Get all materials for a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        
+    Returns:
+        List of material records
+    """
+    from database.database import get_materials_by_classroom
+    
+    try:
+        materials = get_materials_by_classroom(classroom_id)
+        return {"success": True, "materials": materials}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch materials: {str(e)}")
+
+
+@app.post("/classrooms/{classroom_id}/materials/upload")
+async def upload_material(
+    classroom_id: str,
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    description: str = Form(None),
+    week_number: int = Form(None)
+):
+    """
+    Upload a material file for a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        file: PDF file upload
+        title: Title of the material
+        description: Optional description
+        week_number: Optional week number
+        
+    Returns:
+        Created material record
+    """
+    from database.database import supabase, create_material, get_classroom
+    import uuid
+    
+    try:
+        # Verify classroom exists
+        classroom = get_classroom(classroom_id)
+        if not classroom:
+            raise HTTPException(status_code=404, detail="Classroom not found")
+        
+        # Validate file type (PDF only)
+        if file.content_type != 'application/pdf':
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type: {file.content_type}. Only PDF files are allowed."
+            )
+        
+        # Read file content
+        file_content = await file.read()
+        
+        # Validate file size (max 50MB)
+        max_size = 50 * 1024 * 1024  # 50MB
+        if len(file_content) > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large: {len(file_content)} bytes. Max: {max_size} bytes (50MB)"
+            )
+        
+        # Generate unique filename
+        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'pdf'
+        unique_filename = f"{classroom_id}/{uuid.uuid4()}.{file_ext}"
+        
+        print(f"Uploading material: {unique_filename}, size: {len(file_content)} bytes")
+        
+        # Upload to Supabase storage in Materials bucket
+        try:
+            storage_response = supabase.storage.from_("Materials").upload(
+                unique_filename,
+                file_content,
+                {
+                    "content-type": file.content_type or "application/pdf",
+                    "cache-control": "3600"
+                }
+            )
+            
+            # Check for upload errors
+            if hasattr(storage_response, 'error') and storage_response.error:
+                raise Exception(f"Supabase upload error: {storage_response.error}")
+                
+        except Exception as upload_error:
+            print(f"Upload error: {upload_error}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Supabase upload failed: {str(upload_error)}. Check storage bucket permissions."
+            )
+        
+        # Get public URL
+        public_url = supabase.storage.from_("Materials").get_public_url(unique_filename)
+        
+        print(f"Material uploaded successfully: {public_url}")
+        
+        # Create material record in database
+        material = create_material(
+            classroom_id=classroom_id,
+            title=title,
+            file_url=public_url,
+            file_type=file.content_type,
+            description=description,
+            week_number=week_number
+        )
+        
+        return {"success": True, "material": material}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload material: {str(e)}")
+
+
+@app.delete("/materials/{material_id}")
+async def delete_material_endpoint(material_id: str):
+    """
+    Delete a material.
+    
+    Args:
+        material_id: UUID of the material
+        
+    Returns:
+        Success message
+    """
+    from database.database import delete_material, get_material, supabase
+    
+    try:
+        # Get material to find file URL
+        material = get_material(material_id)
+        if not material:
+            raise HTTPException(status_code=404, detail="Material not found")
+        
+        # Extract filename from URL and delete from storage
+        try:
+            file_url = material.get("file_url", "")
+            # Extract path from URL (after /Materials/)
+            if "/Materials/" in file_url:
+                file_path = file_url.split("/Materials/")[-1]
+                supabase.storage.from_("Materials").remove([file_path])
+                print(f"Deleted file from storage: {file_path}")
+        except Exception as storage_error:
+            print(f"Failed to delete file from storage: {storage_error}")
+            # Continue with database deletion even if storage deletion fails
+        
+        # Delete from database
+        success = delete_material(material_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Material not found")
+        
+        return {"success": True, "message": "Material deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete material: {str(e)}")
