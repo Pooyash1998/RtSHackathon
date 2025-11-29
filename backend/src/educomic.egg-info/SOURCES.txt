@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/main.py
+src/database/database.py
+src/database/test_connection.py
+src/educomic.egg-info/PKG-INFO
+src/educomic.egg-info/SOURCES.txt
+src/educomic.egg-info/dependency_links.txt
+src/educomic.egg-info/requires.txt
+src/educomic.egg-info/top_level.txt
+src/services/avatar.py
