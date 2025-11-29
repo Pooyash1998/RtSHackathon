@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/tim/.nvm/versions/node/v22.11.0/bin/npx tailwindcss init -p)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
