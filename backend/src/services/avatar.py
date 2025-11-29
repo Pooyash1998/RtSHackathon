@@ -65,9 +65,30 @@ def _build_avatar_prompt(student: Dict[str, Any], classroom: Optional[Dict[str, 
     
     # Get comic style from classroom, default to manga
     comic_style = classroom.get("design_style", "manga") if classroom else "manga"
+    grade_level = classroom.get("grade_level", 15) if classroom else 15
+
+    # Determine age based on grade level
+    age_mapping = {
+        0: "5-6 year old",  # Kindergarten
+        1: "6-7 year old",  # 1st grade
+        2: "7-8 year old",  # 2nd grade
+        3: "8-9 year old",  # 3rd grade
+        4: "9-10 year old", # 4th grade
+        5: "10-11 year old", # 5th grade
+        6: "11-12 year old", # 6th grade
+        7: "12-13 year old", # 7th grade
+        8: "13-14 year old", # 8th grade
+        9: "14-15 year old", # 9th grade
+        10: "15-16 year old", # 10th grade
+        11: "16-17 year old", # 11th grade
+        12: "17-18 year old", # 12th grade
+    }
+    
+    age_description = age_mapping.get(grade_level, "child")
+    
     
     prompt = (
-        f"Full-body avatar of this child, using the reference photo to preserve their face, "
+        f"Full-body avatar of this {age_description} person, using the reference photo to preserve their face, "
         f"skin tone, hairstyle, and body shape. The child is standing in a relaxed, front-facing pose, "
         f"centered in the frame, single character only. In the style of a {comic_style} classroom comic strip: "
         f"clean line art, flat colors, friendly and age-appropriate. "
