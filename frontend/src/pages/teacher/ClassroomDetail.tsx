@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter, X, Loader2 } from "lucide-react";
+import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter, X, Loader2, Grid3x3, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ interface Student {
   name: string;
   interests: string;
   avatar_url: string | null;
+  photo_url: string | null;
   status: "pending" | "generated";
 }
 
@@ -54,6 +55,7 @@ const ClassroomDetail = () => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [storySortBy, setStorySortBy] = useState<"week" | "date">("week");
+  const [studentViewMode, setStudentViewMode] = useState<"grid" | "list">("grid");
   const [isDragging, setIsDragging] = useState(false);
   const [materials, setMaterials] = useState<MaterialFile[]>([]);
 
@@ -69,10 +71,17 @@ const ClassroomDetail = () => {
         setClassroom(classroomResponse.classroom);
         
         // Map students and add status based on avatar_url
-        const studentsWithStatus = classroomResponse.classroom.students.map(student => ({
-          ...student,
-          status: student.avatar_url ? "generated" as const : "pending" as const
-        }));
+        const studentsWithStatus = classroomResponse.classroom.students.map(student => {
+          console.log(`Student ${student.name}:`, {
+            hasPhoto: !!student.photo_url,
+            hasAvatar: !!student.avatar_url,
+            avatarUrl: student.avatar_url?.substring(0, 50) + '...'
+          });
+          return {
+            ...student,
+            status: student.avatar_url ? "generated" as const : "pending" as const
+          };
+        });
         setStudents(studentsWithStatus);
         
         // Fetch chapters
@@ -299,56 +308,179 @@ const ClassroomDetail = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <motion.div 
-                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                  >
-                    {students.map((student, idx) => (
-                      <motion.div
-                        key={student.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: idx * 0.1 }}
+                  <>
+                    {/* View Toggle */}
+                    <div className="flex justify-end">
+                      <div className="flex gap-1 p-1 backdrop-blur-lg bg-muted/50 rounded-lg border border-border/30">
+                        <Button
+                          variant={studentViewMode === "grid" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setStudentViewMode("grid")}
+                          className="backdrop-blur-sm"
+                        >
+                          <Grid3x3 className="w-4 h-4 mr-2" />
+                          Grid
+                        </Button>
+                        <Button
+                          variant={studentViewMode === "list" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setStudentViewMode("list")}
+                          className="backdrop-blur-sm"
+                        >
+                          <List className="w-4 h-4 mr-2" />
+                          List
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Grid View */}
+                    {studentViewMode === "grid" && (
+                      <motion.div 
+                        className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
                       >
-                        <Card className="backdrop-blur-lg bg-card/70 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl">
-                          <CardContent className="pt-6 space-y-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="w-12 h-12 border-2 border-border/30">
-                                <AvatarImage src={student.avatar_url || undefined} />
-                                <AvatarFallback className="bg-primary/20">
-                                  {student.name.split(' ').map(n => n[0]).join('')}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-foreground">{student.name}</h3>
-                                <p className="text-sm text-muted-foreground">{student.interests}</p>
-                              </div>
-                            </div>
-                            <Badge 
-                              className={student.status === "generated" 
-                                ? "bg-green-500/80 text-white backdrop-blur-sm border-green-300/30" 
-                                : "bg-amber-500/80 text-white backdrop-blur-sm border-amber-300/30"
-                              }
-                            >
-                              {student.status === "generated" ? (
-                                <>
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Generated
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  Pending
-                                </>
-                              )}
-                            </Badge>
-                          </CardContent>
-                        </Card>
+                        {students.map((student, idx) => (
+                          <motion.div
+                            key={student.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: idx * 0.1 }}
+                          >
+                            <Card className="backdrop-blur-lg bg-card/70 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl h-full">
+                              <CardContent className="pt-6 pb-6 flex flex-col h-full">
+                                {/* Student Photo - Fixed Height */}
+                                <div className="flex justify-center mb-4">
+                                  <div className="relative">
+                                    <Avatar className="w-24 h-24 border-4 border-border/30">
+                                      <AvatarImage 
+                                        src={student.photo_url || student.avatar_url || undefined} 
+                                        alt={student.name}
+                                        className="object-cover"
+                                      />
+                                      <AvatarFallback className="bg-primary/20 text-2xl">
+                                        {student.name.split(' ').map(n => n[0]).join('')}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    {student.avatar_url && student.photo_url && (
+                                      <div className="absolute -bottom-2 -right-2 w-12 h-12 rounded-full border-3 border-background overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
+                                        <Avatar className="w-full h-full">
+                                          <AvatarImage 
+                                            src={student.avatar_url} 
+                                            alt={`${student.name} avatar`}
+                                            className="object-cover"
+                                          />
+                                          <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                                            🎨
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Student Info - Fixed Height */}
+                                <div className="text-center flex-1 flex flex-col">
+                                  <h3 className="font-semibold text-foreground text-lg mb-2 min-h-[28px]">
+                                    {student.name}
+                                  </h3>
+                                  {/* Exactly 2 lines for interests - Fixed Height */}
+                                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4 h-[40px] leading-[20px]">
+                                    {student.interests}
+                                  </p>
+                                </div>
+                                
+                                {/* Status Badge - Fixed at Bottom */}
+                                <Badge 
+                                  className={`w-full justify-center ${student.status === "generated" 
+                                    ? "bg-green-500/80 text-white backdrop-blur-sm border-green-300/30" 
+                                    : "bg-amber-500/80 text-white backdrop-blur-sm border-amber-300/30"
+                                  }`}
+                                >
+                                  {student.status === "generated" ? (
+                                    <>
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Avatar Generated
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Avatar Pending
+                                    </>
+                                  )}
+                                </Badge>
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        ))}
                       </motion.div>
-                    ))}
-                  </motion.div>
+                    )}
+
+                    {/* List View */}
+                    {studentViewMode === "list" && (
+                      <motion.div 
+                        className="space-y-3"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                      >
+                        {students.map((student, idx) => (
+                          <motion.div
+                            key={student.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: idx * 0.05 }}
+                          >
+                            <Card className="backdrop-blur-lg bg-card/70 border-border/50 hover:bg-card/80 transition-all hover:shadow-lg">
+                              <CardContent className="py-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3">
+                                      <h3 className="font-semibold text-foreground text-lg">{student.name}</h3>
+                                      <Badge 
+                                        className={student.status === "generated" 
+                                          ? "bg-green-500/80 text-white backdrop-blur-sm border-green-300/30" 
+                                          : "bg-amber-500/80 text-white backdrop-blur-sm border-amber-300/30"
+                                        }
+                                      >
+                                        {student.status === "generated" ? (
+                                          <>
+                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                            Avatar Generated
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Clock className="w-3 h-3 mr-1" />
+                                            Avatar Pending
+                                          </>
+                                        )}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                                      {student.interests}
+                                    </p>
+                                  </div>
+                                  
+                                  {student.avatar_url && (
+                                    <div className="flex-shrink-0">
+                                      <div className="w-12 h-12 rounded-lg border-2 border-border/30 overflow-hidden">
+                                        <img 
+                                          src={student.avatar_url} 
+                                          alt={`${student.name} avatar`}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </>
                 )}
               </TabsContent>
 

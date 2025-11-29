@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, KeyRound } from "lucide-react";
+import { ChevronLeft, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getClassroomById } from "@/lib/mockData";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 const JoinClassroom = () => {
     const navigate = useNavigate();
@@ -17,18 +18,29 @@ const JoinClassroom = () => {
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [error, setError] = useState("");
     const [showClassroom, setShowClassroom] = useState(!!urlClassroomCode);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (urlClassroomCode) {
-            const classroomData = getClassroomById(urlClassroomCode);
-            if (classroomData) {
-                setClassroom(classroomData);
-                setShowClassroom(true);
+        const fetchClassroom = async () => {
+            if (urlClassroomCode) {
+                setIsLoading(true);
+                try {
+                    const response = await api.classrooms.getById(urlClassroomCode);
+                    setClassroom(response.classroom);
+                    setShowClassroom(true);
+                } catch (error) {
+                    console.error("Failed to fetch classroom:", error);
+                    setError("Invalid classroom link. Please check with your teacher.");
+                } finally {
+                    setIsLoading(false);
+                }
             }
-        }
+        };
+        
+        fetchClassroom();
     }, [urlClassroomCode]);
 
-    const handleCodeSubmit = (e: React.FormEvent) => {
+    const handleCodeSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
 
@@ -37,30 +49,28 @@ const JoinClassroom = () => {
             return;
         }
 
-        // Validate classroom code exists
-        const classroomData = getClassroomById(classroomCode);
-        if (!classroomData) {
+        setIsLoading(true);
+        try {
+            const response = await api.classrooms.getById(classroomCode);
+            setClassroom(response.classroom);
+            setShowClassroom(true);
+        } catch (error) {
+            console.error("Failed to fetch classroom:", error);
             setError("Invalid classroom code. Please check with your teacher.");
-            return;
+        } finally {
+            setIsLoading(false);
         }
-
-        setClassroom(classroomData);
-        setShowClassroom(true);
     };
 
     const handleJoin = () => {
         if (!agreedToTerms) return;
 
-        // In production, this would add the student to the classroom
-        const mockStudentId = "student-new-" + Date.now();
-
-        console.log("Student joining classroom:", {
-            studentId: mockStudentId,
-            classroomId: classroom.id
-        });
-
-        // Navigate to student dashboard
-        navigate(`/student/dashboard/${mockStudentId}`);
+        // Store classroom ID in session storage and navigate to signup
+        sessionStorage.setItem('pendingClassroomId', classroom.id);
+        sessionStorage.setItem('pendingClassroomName', classroom.name);
+        
+        // Navigate to student signup with classroom context
+        navigate('/student/signup');
     };
 
     const subjectColors: Record<string, string> = {

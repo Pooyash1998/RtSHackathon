@@ -1,7 +1,7 @@
 """
 FastAPI main application entry point.
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
@@ -123,6 +123,113 @@ async def get_classroom_chapters(classroom_id: str):
         return {"success": True, "chapters": chapters}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch chapters: {str(e)}")
+
+@app.post("/students/create")
+async def create_student(
+    classroom_id: str,
+    name: str,
+    interests: str,
+    photo_url: str = None
+):
+    """
+    Create a new student and add them to a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom to join
+        name: Student's full name
+        interests: Student's interests/hobbies
+        photo_url: Optional URL to student's photo
+        
+    Returns:
+        Created student record
+    """
+    from database.database import supabase
+    
+    try:
+        # Create student record
+        student_data = {
+            "classroom_id": classroom_id,
+            "name": name,
+            "interests": interests,
+            "photo_url": photo_url
+        }
+        
+        response = supabase.table("students").insert(student_data).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to create student")
+        
+        student = response.data[0]
+        return {"success": True, "student": student}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create student: {str(e)}")
+
+@app.post("/students/upload-photo")
+async def upload_student_photo(
+    file: UploadFile = File(...),
+    filename: str = Form(...)
+):
+    """
+    Upload a student photo to Supabase storage.
+    
+    Args:
+        file: Photo file upload
+        filename: Name of the file
+        
+    Returns:
+        Public URL of the uploaded photo
+    """
+    from database.database import supabase
+    import uuid
+    
+    try:
+        # Read file content
+        file_content = await file.read()
+        
+        # Generate unique filename
+        file_ext = filename.split('.')[-1] if '.' in filename else 'jpg'
+        unique_filename = f"{uuid.uuid4()}.{file_ext}"
+        
+        # Upload to Supabase storage
+        response = supabase.storage.from_("StudentPhotos").upload(
+            unique_filename,
+            file_content,
+            {"content-type": file.content_type or f"image/{file_ext}"}
+        )
+        
+        # Get public URL
+        public_url = supabase.storage.from_("StudentPhotos").get_public_url(unique_filename)
+        
+        return {"success": True, "photo_url": public_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload photo: {str(e)}")
+
+@app.get("/students/{student_id}")
+async def get_student(student_id: str):
+    """
+    Get a student by ID.
+    
+    Args:
+        student_id: UUID of the student
+        
+    Returns:
+        Student record
+    """
+    from database.database import get_student
+    
+    try:
+        student = get_student(student_id)
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+        return {"success": True, "student": student}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch student: {str(e)}")
 
 @app.post("/avatar/create/{student_id}")
 async def create_avatar_endpoint(student_id: str):

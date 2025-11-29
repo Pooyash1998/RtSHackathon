@@ -77,6 +77,7 @@ export const api = {
             name: string;
             interests: string;
             avatar_url: string | null;
+            photo_url: string | null;
             created_at: string;
           }>;
         };
@@ -90,6 +91,7 @@ export const api = {
           name: string;
           interests: string;
           avatar_url: string | null;
+          photo_url: string | null;
           created_at: string;
         }>;
       }>(`/classrooms/${classroomId}/students`),
@@ -131,6 +133,56 @@ export const api = {
       }>(`/avatar/create/${studentId}`, {
         method: 'POST',
       }),
+  },
+
+  // Students
+  students: {
+    create: (classroomId: string, name: string, interests: string, photoUrl?: string) =>
+      apiFetch<{
+        success: boolean;
+        student: {
+          id: string;
+          classroom_id: string;
+          name: string;
+          interests: string;
+          photo_url: string | null;
+          avatar_url: string | null;
+          created_at: string;
+        };
+      }>(`/students/create?classroom_id=${classroomId}&name=${encodeURIComponent(name)}&interests=${encodeURIComponent(interests)}${photoUrl ? `&photo_url=${encodeURIComponent(photoUrl)}` : ''}`, {
+        method: 'POST',
+      }),
+    
+    getById: (studentId: string) =>
+      apiFetch<{
+        success: boolean;
+        student: {
+          id: string;
+          classroom_id: string;
+          name: string;
+          interests: string;
+          photo_url: string | null;
+          avatar_url: string | null;
+          created_at: string;
+        };
+      }>(`/students/${studentId}`),
+    
+    uploadPhoto: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('filename', file.name);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/students/upload-photo`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload photo');
+      }
+      
+      return await response.json() as { success: boolean; photo_url: string };
+    },
   },
 };
 

@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, User } from "lucide-react";
+import { ChevronLeft, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 const StudentSignup = () => {
   const navigate = useNavigate();
@@ -14,6 +16,18 @@ const StudentSignup = () => {
   const [interests, setInterests] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingClassroom, setPendingClassroom] = useState<{id: string, name: string} | null>(null);
+
+  useEffect(() => {
+    // Check if student is joining from a classroom invite
+    const classroomId = sessionStorage.getItem('pendingClassroomId');
+    const classroomName = sessionStorage.getItem('pendingClassroomName');
+    
+    if (classroomId && classroomName) {
+      setPendingClassroom({ id: classroomId, name: classroomName });
+    }
+  }, []);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -29,23 +43,46 @@ const StudentSignup = () => {
 
   const isFormValid = firstName.trim() && lastName.trim() && interests.trim();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
+    if (!isFormValid || !pendingClassroom) return;
 
-    // In production, this would create the student account/avatar
-    const mockStudentId = "student-new-" + Date.now();
+    setIsSubmitting(true);
 
-    console.log("Creating student account:", {
-      studentId: mockStudentId,
-      firstName,
-      lastName,
-      interests,
-      photo
-    });
+    try {
+      // Upload photo if provided
+      let photoUrl: string | undefined;
+      if (photo) {
+        toast.info("Uploading photo...");
+        const uploadResponse = await api.students.uploadPhoto(photo);
+        photoUrl = uploadResponse.photo_url;
+      }
 
-    // After creating account, go to dashboard
-    navigate(`/student/dashboard/${mockStudentId}`);
+      // Create student account
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      toast.info("Creating your account...");
+      
+      const response = await api.students.create(
+        pendingClassroom.id,
+        fullName,
+        interests.trim(),
+        photoUrl
+      );
+
+      // Clear session storage
+      sessionStorage.removeItem('pendingClassroomId');
+      sessionStorage.removeItem('pendingClassroomName');
+
+      toast.success("Account created successfully!");
+
+      // Navigate to student dashboard
+      navigate(`/student/dashboard/${response.student.id}`);
+    } catch (error) {
+      console.error("Failed to create student:", error);
+      toast.error("Failed to create account. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -67,9 +104,15 @@ const StudentSignup = () => {
               <h1 className="text-3xl font-bold text-foreground mb-2">
                 Create Your Account
               </h1>
-              <p className="text-muted-foreground">
-                Set up your profile to get started
-              </p>
+              {pendingClassroom ? (
+                <p className="text-muted-foreground">
+                  Join <strong>{pendingClassroom.name}</strong> and set up your profile
+                </p>
+              ) : (
+                <p className="text-muted-foreground">
+                  Set up your profile to get started
+                </p>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -159,14 +202,27 @@ const StudentSignup = () => {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={!isFormValid}
+                disabled={!isFormValid || isSubmitting || !pendingClassroom}
               >
-                Create Account
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating Account...
+                  </>
+                ) : (
+                  `Create Account${pendingClassroom ? ` & Join ${pendingClassroom.name}` : ''}`
+                )}
               </Button>
 
               {!isFormValid && (
                 <p className="text-sm text-center text-muted-foreground">
                   Please fill in all required fields
+                </p>
+              )}
+              
+              {!pendingClassroom && (
+                <p className="text-sm text-center text-destructive">
+                  Please join a classroom first
                 </p>
               )}
             </form>
