@@ -9,3 +9,7 @@ src/educomic.egg-info/dependency_links.txt
 src/educomic.egg-info/requires.txt
 src/educomic.egg-info/top_level.txt
 src/services/avatar.py
+src/services/chapter.py
+src/services/comic_creation.py
+src/services/story_idea.py
+src/services/test_story_idea.py

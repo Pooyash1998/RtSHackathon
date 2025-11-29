@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 interface StoryOption {
   id: string;
@@ -37,6 +38,7 @@ const mockStoryOptions: StoryOption[] = [
 
 const StoryGenerator = () => {
   const navigate = useNavigate();
+  const { classroomId } = useParams<{ classroomId: string }>();
   const [step, setStep] = useState(1);
   const [lessonInput, setLessonInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -44,13 +46,27 @@ const StoryGenerator = () => {
   const [selectedStory, setSelectedStory] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
-  const generateOptions = () => {
+  const generateOptions = async () => {
+    if (!classroomId) {
+      toast.error("No classroom selected");
+      return;
+    }
+
     setIsGenerating(true);
-    setTimeout(() => {
-      setStoryOptions(mockStoryOptions);
-      setIsGenerating(false);
+    try {
+      const response = await api.story.generateOptions(classroomId, lessonInput);
+      setStoryOptions(response.options);
       setStep(2);
-    }, 2000);
+      toast.success("Story options generated!");
+    } catch (error) {
+      console.error("Failed to generate story options:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate story options");
+      // Fallback to mock data for testing
+      setStoryOptions(mockStoryOptions);
+      setStep(2);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const selectStory = (storyId: string) => {

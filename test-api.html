@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduComic API Tester</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .error {
+            border-left-color: #f44336;
+            color: #f44336;
+        }
+        .loading {
+            color: #2196F3;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+            margin-top: 10px;
+        }
+        label {
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 EduComic API Tester</h1>
+        <p class="subtitle">Test the backend API endpoints</p>
+
+        <!-- Health Check -->
+        <div class="test-section">
+            <h3>1. Health Check</h3>
+            <p>Test if the backend is running</p>
+            <button onclick="testHealth()">Test Health Endpoint</button>
+            <div id="health-result"></div>
+        </div>
+
+        <!-- Story Generation -->
+        <div class="test-section">
+            <h3>2. Generate Story Options</h3>
+            <p>Generate 3 story options using OpenAI</p>
+            
+            <label>Classroom ID:</label>
+            <input type="text" id="classroom-id" value="942f3ae3-1dbd-4b7c-afd3-135b3e386de1" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+            
+            <label style="display: block; margin-top: 15px;">Lesson Prompt:</label>
+            <textarea id="lesson-prompt" rows="4">Newton's Laws of Motion - forces, acceleration, and action-reaction pairs</textarea>
+            
+            <button onclick="testStoryGeneration()" style="margin-top: 15px;">Generate Story Options</button>
+            <div id="story-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<div class="result loading">Testing...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `<div class="result">✅ Success!\n\n${JSON.stringify(data, null, 2)}</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}\n\nMake sure the backend is running on port 8000</div>`;
+            }
+        }
+
+        async function testStoryGeneration() {
+            const resultDiv = document.getElementById('story-result');
+            const classroomId = document.getElementById('classroom-id').value;
+            const lessonPrompt = document.getElementById('lesson-prompt').value;
+            
+            if (!classroomId || !lessonPrompt) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please fill in both fields</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result loading">Generating story options... This may take 10-20 seconds...</div>';
+            
+            try {
+                const url = `${API_URL}/story/generate-options?classroom_id=${encodeURIComponent(classroomId)}&lesson_prompt=${encodeURIComponent(lessonPrompt)}`;
+                const response = await fetch(url, { method: 'POST' });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'API request failed');
+                }
+                
+                const data = await response.json();
+                
+                let output = '✅ Success! Generated story options:\n\n';
+                data.options.forEach((option, i) => {
+                    output += `Option ${i + 1}:\n`;
+                    output += `  Title: ${option.title}\n`;
+                    output += `  Theme: ${option.theme}\n`;
+                    output += `  Summary: ${option.summary}\n\n`;
+                });
+                
+                resultDiv.innerHTML = `<div class="result">${output}</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}\n\nMake sure:\n1. Backend is running\n2. OpenAI API key is configured\n3. Classroom exists in database</div>`;
+            }
+        }
+
+        // Test health on page load
+        window.addEventListener('load', () => {
+            testHealth();
+        });
+    </script>
+</body>
+</html>
