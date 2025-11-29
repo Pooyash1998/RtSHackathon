@@ -137,6 +137,19 @@ export const api = {
 
   // Students
   students: {
+    getAll: () =>
+      apiFetch<{
+        success: boolean;
+        students: Array<{
+          id: string;
+          name: string;
+          interests: string;
+          photo_url: string | null;
+          avatar_url: string | null;
+          created_at: string;
+        }>;
+      }>('/students'),
+    
     create: (name: string, interests: string, photoUrl?: string) =>
       apiFetch<{
         success: boolean;

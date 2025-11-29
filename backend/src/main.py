@@ -308,6 +308,22 @@ async def upload_student_photo(
         print(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to upload photo: {str(e)}")
 
+@app.get("/students")
+async def get_all_students():
+    """
+    Get all students.
+    
+    Returns:
+        List of all student records
+    """
+    from database.database import supabase
+    
+    try:
+        response = supabase.table("students").select("*").order("created_at", desc=True).execute()
+        return {"success": True, "students": response.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch students: {str(e)}")
+
 @app.get("/students/{student_id}")
 async def get_student(student_id: str):
     """

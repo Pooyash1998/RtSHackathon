@@ -16,7 +16,7 @@ export function ClassPictureBanner({ students, className = "" }: ClassPictureBan
 
   return (
     <div className={`backdrop-blur-lg bg-card/70 border border-border/50 rounded-lg p-4 ${className}`}>
-      <h3 className="text-sm font-semibold mb-3 text-foreground">Class Picture</h3>
+      <h3 className="text-sm font-semibold mb-3 text-foreground">Classmates</h3>
       <div className="flex flex-wrap gap-2">
         <TooltipProvider>
           {students.map((student) => (

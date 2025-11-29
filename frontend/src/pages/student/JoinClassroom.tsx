@@ -24,12 +24,15 @@ const JoinClassroom = () => {
         const fetchClassroom = async () => {
             if (urlClassroomCode) {
                 setIsLoading(true);
+                console.log("Fetching classroom with ID:", urlClassroomCode);
                 try {
                     const response = await api.classrooms.getById(urlClassroomCode);
+                    console.log("Classroom fetched successfully:", response.classroom);
                     setClassroom(response.classroom);
                     setShowClassroom(true);
                 } catch (error) {
                     console.error("Failed to fetch classroom:", error);
+                    console.error("Error details:", error instanceof Error ? error.message : error);
                     setError("Invalid classroom link. Please check with your teacher.");
                 } finally {
                     setIsLoading(false);
@@ -40,6 +43,33 @@ const JoinClassroom = () => {
         fetchClassroom();
     }, [urlClassroomCode]);
 
+    // Helper function to extract classroom ID from full URL or return the ID itself
+    const extractClassroomId = (input: string): string => {
+        const trimmedInput = input.trim();
+        
+        // Check if it's a full URL
+        if (trimmedInput.startsWith('http://') || trimmedInput.startsWith('https://')) {
+            try {
+                const url = new URL(trimmedInput);
+                // Extract the last part of the path (the classroom ID)
+                const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+                return pathParts[pathParts.length - 1];
+            } catch (error) {
+                console.error("Failed to parse URL:", error);
+                return trimmedInput;
+            }
+        }
+        
+        // If it contains a slash, extract the last part
+        if (trimmedInput.includes('/')) {
+            const parts = trimmedInput.split('/').filter(part => part.length > 0);
+            return parts[parts.length - 1];
+        }
+        
+        // Otherwise, assume it's already just the classroom ID
+        return trimmedInput;
+    };
+
     const handleCodeSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
@@ -49,14 +79,21 @@ const JoinClassroom = () => {
             return;
         }
 
+        // Extract classroom ID from full URL or use as-is
+        const extractedId = extractClassroomId(classroomCode);
+        console.log("Original input:", classroomCode);
+        console.log("Extracted classroom ID:", extractedId);
+
         setIsLoading(true);
         try {
-            const response = await api.classrooms.getById(classroomCode);
+            const response = await api.classrooms.getById(extractedId);
+            console.log("Classroom fetched successfully:", response.classroom);
             setClassroom(response.classroom);
             setShowClassroom(true);
         } catch (error) {
             console.error("Failed to fetch classroom:", error);
-            setError("Invalid classroom code. Please check with your teacher.");
+            console.error("Error details:", error instanceof Error ? error.message : error);
+            setError("Invalid classroom code or link. Please check with your teacher.");
         } finally {
             setIsLoading(false);
         }
@@ -104,11 +141,24 @@ const JoinClassroom = () => {
         Biology: "bg-emerald-500"
     };
 
+    const handleBack = () => {
+        if (showClassroom) {
+            // If showing classroom details, go back to code entry
+            setShowClassroom(false);
+            setClassroom(null);
+            setClassroomCode("");
+            setError("");
+        } else {
+            // If on code entry, go back to wherever they came from
+            navigate(-1);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-muted/20">
             <header className="bg-background border-b">
                 <div className="container mx-auto px-4 py-4">
-                    <Button variant="ghost" onClick={() => navigate(showClassroom ? "/student/join" : "/student/signup")}>
+                    <Button variant="ghost" onClick={handleBack}>
                         <ChevronLeft className="w-5 h-5 mr-2" />
                         Back
                     </Button>
@@ -126,17 +176,17 @@ const JoinClassroom = () => {
                                 </div>
                                 <h1 className="text-3xl font-bold text-foreground mb-2">Join a Classroom</h1>
                                 <p className="text-muted-foreground">
-                                    Enter the classroom code provided by your teacher
+                                    Paste the invite link or enter the classroom code
                                 </p>
                             </div>
 
                             <form onSubmit={handleCodeSubmit} className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="classroomCode">Classroom Code</Label>
+                                    <Label htmlFor="classroomCode">Classroom Link or Code</Label>
                                     <Input
                                         id="classroomCode"
                                         type="text"
-                                        placeholder="Enter code (e.g., class-1)"
+                                        placeholder="Paste full link or enter code"
                                         value={classroomCode}
                                         onChange={(e) => {
                                             setClassroomCode(e.target.value);

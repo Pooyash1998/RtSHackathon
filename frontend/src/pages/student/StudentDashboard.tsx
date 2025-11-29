@@ -5,49 +5,55 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
-import { BookOpen, Users, Sparkles } from "lucide-react";
-import {
-  getStudentById,
-  getClassroomsByStudentId,
-  getNewestStoryForStudent,
-  getStudentsByClassroomId,
-  getStoriesByClassroomId
-} from "@/lib/mockData";
+import { BookOpen, Users, Sparkles, Plus, Loader2 } from "lucide-react";
 import { ClassPictureBanner } from "@/components/shared/ClassPictureBanner";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const StudentDashboard = () => {
   const { studentId } = useParams();
   const [student, setStudent] = useState<any>(null);
   const [newestStory, setNewestStory] = useState<any>(null);
   const [classrooms, setClassrooms] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (studentId) {
-      const studentData = getStudentById(studentId);
-
-      // If student doesn't exist in mock data (e.g., newly created), create a mock student object
-      if (!studentData) {
+    const fetchStudentData = async () => {
+      if (!studentId) return;
+      
+      setIsLoading(true);
+      try {
+        // Fetch student data with their classrooms from API
+        const response = await api.students.getById(studentId);
+        
+        console.log("Student data fetched:", response);
+        
+        setStudent(response.student);
+        setClassrooms(response.classrooms || []);
+        
+        // TODO: Fetch newest story when story API is ready
+        setNewestStory(null);
+        
+      } catch (error) {
+        console.error("Failed to fetch student data:", error);
+        toast.error("Failed to load student data");
+        
+        // Fallback for development
         setStudent({
           id: studentId,
-          name: "New Student",
+          name: "Student",
           interests: "Learning",
           avatar_url: null,
           photo_url: null,
-          classroom_id: "",
           created_at: new Date().toISOString()
         });
         setClassrooms([]);
-        setNewestStory(null);
-      } else {
-        setStudent(studentData);
-
-        const newestStoryData = getNewestStoryForStudent(studentId);
-        setNewestStory(newestStoryData);
-
-        const classroomData = getClassroomsByStudentId(studentId);
-        setClassrooms(classroomData);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    fetchStudentData();
   }, [studentId]);
 
   const getInitials = (name: string) =>
@@ -62,10 +68,13 @@ const StudentDashboard = () => {
     Biology: "bg-emerald-500"
   };
 
-  if (!student) {
+  if (isLoading || !student) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="text-center space-y-4">
+          <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -148,9 +157,17 @@ const StudentDashboard = () => {
 
         {/* My Classrooms Section */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="w-5 h-5 text-primary" />
-            <h2 className="text-2xl font-bold text-foreground">My Classrooms</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              <h2 className="text-2xl font-bold text-foreground">My Classrooms</h2>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/student/join">
+                <Plus className="w-4 h-4 mr-2" />
+                Join Classroom
+              </Link>
+            </Button>
           </div>
         </div>
 
@@ -170,57 +187,48 @@ const StudentDashboard = () => {
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {classrooms.map((classroom, idx) => {
-              const students = getStudentsByClassroomId(classroom.id);
-              const stories = getStoriesByClassroomId(classroom.id);
-
-              return (
-                <motion.div
-                  key={classroom.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
-                >
-                  <Card className="backdrop-blur-lg bg-card/70 border-2 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl hover:scale-[1.02]">
-                    <CardContent className="pt-6 space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-foreground mb-2">
-                            {classroom.name}
-                          </h3>
-                          <div className="flex gap-2 flex-wrap mb-3">
-                            <Badge className={`${subjectColors[classroom.subject] || 'bg-gray-500'} text-white`}>
-                              {classroom.subject}
-                            </Badge>
-                            <Badge variant="outline">Grade {classroom.grade_level}</Badge>
-                          </div>
+            {classrooms.map((classroom, idx) => (
+              <motion.div
+                key={classroom.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
+              >
+                <Card className="backdrop-blur-lg bg-card/70 border-2 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl hover:scale-[1.02]">
+                  <CardContent className="pt-6 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-foreground mb-2">
+                          {classroom.name}
+                        </h3>
+                        <div className="flex gap-2 flex-wrap mb-3">
+                          <Badge className={`${subjectColors[classroom.subject] || 'bg-gray-500'} text-white`}>
+                            {classroom.subject}
+                          </Badge>
+                          <Badge variant="outline">Grade {classroom.grade_level}</Badge>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Mini Class Picture Banner */}
-                      <ClassPictureBanner
-                        students={students.slice(0, 5).map(s => ({
-                          id: s.id,
-                          name: s.name,
-                          avatar_url: s.avatar_url
-                        }))}
-                      />
+                    {/* Classroom Info */}
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Theme:</strong> {classroom.story_theme}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Style:</strong> {classroom.design_style}
+                      </p>
+                    </div>
 
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{students.length} students</span>
-                        <span>{stories.length} stories</span>
-                      </div>
-
-                      <Button asChild variant="default" className="w-full">
-                        <Link to={`/student/classroom/${classroom.id}/${studentId}`}>
-                          View Classroom
-                        </Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
+                    <Button asChild variant="default" className="w-full">
+                      <Link to={`/student/classroom/${classroom.id}/${studentId}`}>
+                        View Classroom
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
           </div>
         )}
       </div>

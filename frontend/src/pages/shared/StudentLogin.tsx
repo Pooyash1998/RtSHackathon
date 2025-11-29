@@ -28,28 +28,10 @@ const StudentLogin = () => {
     const fetchAllStudents = async () => {
         setIsLoading(true);
         try {
-            // Fetch all classrooms and their students
-            const classroomsResponse = await api.classrooms.getAll();
-            const allStudents: Student[] = [];
-            const studentIds = new Set<string>();
-
-            // Get students from each classroom
-            for (const classroom of classroomsResponse.classrooms) {
-                try {
-                    const studentsResponse = await api.classrooms.getStudents(classroom.id);
-                    studentsResponse.students.forEach(student => {
-                        // Avoid duplicates (students can be in multiple classrooms)
-                        if (!studentIds.has(student.id)) {
-                            studentIds.add(student.id);
-                            allStudents.push(student);
-                        }
-                    });
-                } catch (error) {
-                    console.error(`Failed to fetch students for classroom ${classroom.id}:`, error);
-                }
-            }
-
-            setStudents(allStudents);
+            // Fetch all students directly from students table
+            const response = await api.students.getAll();
+            console.log("Fetched students:", response.students);
+            setStudents(response.students);
         } catch (error) {
             console.error("Failed to fetch students:", error);
             toast.error("Failed to load students. Please try again.");

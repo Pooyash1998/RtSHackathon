@@ -4,34 +4,45 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { ChevronLeft, BookOpen, CheckCircle } from "lucide-react";
-import {
-  getClassroomById,
-  getStudentsByClassroomId,
-  getStoriesByClassroomId
-} from "@/lib/mockData";
+import { ChevronLeft, BookOpen, CheckCircle, Loader2 } from "lucide-react";
 import { ClassPictureBanner } from "@/components/shared/ClassPictureBanner";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const StudentClassroom = () => {
   const { classroomId, studentId } = useParams();
   const navigate = useNavigate();
   const [classroom, setClassroom] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
-  const [stories, setStories] = useState<any[]>([]);
+  const [chapters, setChapters] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (classroomId) {
-      const classroomData = getClassroomById(classroomId);
-      setClassroom(classroomData);
+    const fetchClassroomData = async () => {
+      if (!classroomId) return;
+      
+      setIsLoading(true);
+      try {
+        // Fetch classroom with students
+        const classroomResponse = await api.classrooms.getById(classroomId);
+        console.log("Classroom data:", classroomResponse);
+        setClassroom(classroomResponse.classroom);
+        setStudents(classroomResponse.classroom.students || []);
 
-      const studentsData = getStudentsByClassroomId(classroomId);
-      setStudents(studentsData);
+        // Fetch chapters (stories)
+        const chaptersResponse = await api.classrooms.getChapters(classroomId);
+        console.log("Chapters data:", chaptersResponse);
+        setChapters(chaptersResponse.chapters || []);
+        
+      } catch (error) {
+        console.error("Failed to fetch classroom data:", error);
+        toast.error("Failed to load classroom");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      const storiesData = getStoriesByClassroomId(classroomId);
-      setStories(storiesData.sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ));
-    }
+    fetchClassroomData();
   }, [classroomId]);
 
   const subjectColors: Record<string, string> = {
@@ -43,10 +54,26 @@ const StudentClassroom = () => {
     Biology: "bg-emerald-500"
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading classroom...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!classroom) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Classroom not found</p>
+          <Button onClick={() => navigate(`/student/dashboard/${studentId}`)}>
+            Back to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
@@ -110,7 +137,7 @@ const StudentClassroom = () => {
         >
           <h2 className="text-2xl font-bold text-foreground mb-6">Stories</h2>
 
-          {stories.length === 0 ? (
+          {chapters.length === 0 ? (
             <Card className="backdrop-blur-lg bg-card/70 border-border/50">
               <CardContent className="pt-12 pb-12 text-center">
                 <p className="text-muted-foreground">
@@ -120,9 +147,9 @@ const StudentClassroom = () => {
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stories.map((story, idx) => (
+              {chapters.map((chapter, idx) => (
                 <motion.div
-                  key={story.id}
+                  key={chapter.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.3 + idx * 0.1 }}
@@ -135,10 +162,13 @@ const StudentClassroom = () => {
 
                       <div>
                         <h3 className="text-xl font-bold text-foreground mb-2">
-                          {story.title}
+                          Chapter {chapter.index}
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          Created on {new Date(story.created_at).toLocaleDateString()}
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {chapter.chapter_outline}
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Created on {new Date(chapter.created_at).toLocaleDateString()}
                         </p>
 
                         <div className="flex gap-2 flex-wrap mb-4">
@@ -147,13 +177,13 @@ const StudentClassroom = () => {
                             Completed
                           </Badge>
                           <Badge variant="outline">
-                            {story.design_style}
+                            {classroom.design_style}
                           </Badge>
                         </div>
                       </div>
 
                       <Button asChild className="w-full">
-                        <Link to={`/student/story/${story.id}/${studentId}`}>
+                        <Link to={`/student/story/${chapter.id}/${studentId}`}>
                           <BookOpen className="w-4 h-4 mr-2" />
                           Read Story
                         </Link>
