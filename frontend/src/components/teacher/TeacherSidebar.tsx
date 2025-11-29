@@ -6,15 +6,11 @@ import {
   Users, 
   BookOpen, 
   FileText, 
-  Download,
-  Plus,
   ArrowLeft
 } from "lucide-react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/animated-sidebar";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
 
 interface TeacherSidebarProps {
   open: boolean;
@@ -63,18 +59,6 @@ export function TeacherSidebar({ open, setOpen }: TeacherSidebarProps) {
     },
   ] : [];
 
-  const handleExportStudents = () => {
-    toast.success("Exporting student list...");
-    // Simulate export
-    setTimeout(() => {
-      toast.success("Student list exported successfully!");
-    }, 1000);
-  };
-
-  const handleGenerateStory = () => {
-    window.location.href = "/teacher/story/new";
-  };
-
   return (
     <Sidebar open={open} setOpen={setOpen}>
       <SidebarBody className="justify-between gap-10">
@@ -113,33 +97,6 @@ export function TeacherSidebar({ open, setOpen }: TeacherSidebarProps) {
                 ))}
               </div>
 
-              {/* Classroom Actions */}
-              {open && (
-                <div className="mt-4 space-y-2 px-2">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Actions
-                  </h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={handleGenerateStory}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Story
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={handleExportStudents}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Students
-                  </Button>
-                </div>
-              )}
-              
               <Separator className="my-4" />
             </>
           )}

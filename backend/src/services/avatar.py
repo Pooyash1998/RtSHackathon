@@ -114,7 +114,8 @@ async def _call_black_forest_api(prompt: str, api_key: str, image_url: Optional[
     Raises:
         httpx.HTTPError: If API request fails
     """
-    url = "https://api.bfl.ai/v1/flux-2-pro"
+    # Use flux-pro-1.1 for better quality
+    url = "https://api.bfl.ai/v1/flux-pro-1.1"
     
     headers = {
         "accept": "application/json",
@@ -123,12 +124,15 @@ async def _call_black_forest_api(prompt: str, api_key: str, image_url: Optional[
     }
     
     payload = {
-        "prompt": prompt
+        "prompt": prompt,
+        "width": 512,
+        "height": 512
     }
     
-    # Add reference image if provided
+    # Add reference image if provided (for image-to-image generation)
     if image_url:
-        payload["input_image"] = image_url
+        payload["image_prompt"] = image_url
+        payload["prompt_upsampling"] = False
     
     async with httpx.AsyncClient(timeout=120.0) as client:
         # Submit generation request
@@ -137,17 +141,18 @@ async def _call_black_forest_api(prompt: str, api_key: str, image_url: Optional[
         
         result = response.json()
         request_id = result.get("id")
-        polling_url = result.get("polling_url")
         
-        if not request_id or not polling_url:
-            raise ValueError("No request ID or polling URL returned from Black Forest Labs API")
+        if not request_id:
+            raise ValueError("No request ID returned from Black Forest Labs API")
         
-        # Poll for result using the polling URL
+        # Poll for result
+        get_url = f"https://api.bfl.ai/v1/get_result?id={request_id}"
         max_attempts = 60
+        
         for attempt in range(max_attempts):
             await asyncio.sleep(2)  # Wait 2 seconds between polls
             
-            result_response = await client.get(polling_url, headers=headers)
+            result_response = await client.get(get_url, headers=headers)
             result_response.raise_for_status()
             
             result_data = result_response.json()

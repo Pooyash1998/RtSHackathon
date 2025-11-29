@@ -58,6 +58,29 @@ async def create_avatar_endpoint(student_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Avatar generation failed: {str(e)}")
     
+@app.post("/story/generate-options")
+async def generate_story_options_endpoint(classroom_id: str, lesson_prompt: str):
+    """
+    Generate 3 story options based on teacher's prompt.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        lesson_prompt: Teacher's description of the lesson
+        
+    Returns:
+        List of 3 story options with id, title, summary, theme
+    """
+    from services.story_idea import generate_story_options
+    
+    try:
+        options = await generate_story_options(classroom_id, lesson_prompt)
+        return {"success": True, "options": options}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Story generation failed: {str(e)}")
+
+
 @app.post("/story/create/{classroom_id}")
 async def create_story_endpoint(classroom_id: str):
     """
