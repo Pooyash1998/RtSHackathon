@@ -43,6 +43,69 @@ export const api = {
   // Health check
   health: () => apiFetch<{ status: string; supabase_configured: boolean }>('/health'),
 
+  // Classrooms
+  classrooms: {
+    getAll: () =>
+      apiFetch<{
+        success: boolean;
+        classrooms: Array<{
+          id: string;
+          name: string;
+          subject: string;
+          grade_level: string;
+          story_theme: string;
+          design_style: string;
+          student_count: number;
+          story_count: number;
+          created_at: string;
+        }>;
+      }>('/classrooms'),
+    
+    getById: (classroomId: string) =>
+      apiFetch<{
+        success: boolean;
+        classroom: {
+          id: string;
+          name: string;
+          subject: string;
+          grade_level: string;
+          story_theme: string;
+          design_style: string;
+          created_at: string;
+          students: Array<{
+            id: string;
+            name: string;
+            interests: string;
+            avatar_url: string | null;
+            created_at: string;
+          }>;
+        };
+      }>(`/classrooms/${classroomId}`),
+    
+    getStudents: (classroomId: string) =>
+      apiFetch<{
+        success: boolean;
+        students: Array<{
+          id: string;
+          name: string;
+          interests: string;
+          avatar_url: string | null;
+          created_at: string;
+        }>;
+      }>(`/classrooms/${classroomId}/students`),
+    
+    getChapters: (classroomId: string) =>
+      apiFetch<{
+        success: boolean;
+        chapters: Array<{
+          id: string;
+          index: number;
+          chapter_outline: string;
+          created_at: string;
+        }>;
+      }>(`/classrooms/${classroomId}/chapters`),
+  },
+
   // Story generation
   story: {
     generateOptions: (classroomId: string, lessonPrompt: string) =>

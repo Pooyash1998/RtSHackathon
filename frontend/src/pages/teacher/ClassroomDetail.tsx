@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter, X } from "lucide-react";
+import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 interface Student {
   id: string;
@@ -22,13 +23,20 @@ interface Student {
   status: "pending" | "generated";
 }
 
-interface Story {
+interface Chapter {
   id: string;
-  title: string;
+  index: number;
+  chapter_outline: string;
   created_at: string;
-  status: "generating" | "completed";
-  progress?: number;
-  thumbnail_url: string;
+}
+
+interface Classroom {
+  id: string;
+  name: string;
+  subject: string;
+  grade_level: string;
+  story_theme: string;
+  design_style: string;
 }
 
 interface MaterialFile {
@@ -37,59 +45,49 @@ interface MaterialFile {
   description: string;
 }
 
-const mockStudents: Student[] = [
-  { id: "1", name: "Emma Johnson", interests: "Space, Robots", avatar_url: null, status: "generated" },
-  { id: "2", name: "Liam Chen", interests: "Sports, Adventure", avatar_url: null, status: "generated" },
-  { id: "3", name: "Sophia Martinez", interests: "Mystery, Books", avatar_url: null, status: "pending" }
-];
-
-const mockStories: Story[] = [
-  {
-    id: "1",
-    title: "Newton's Laws in Space",
-    created_at: "2024-11-20",
-    status: "completed",
-    thumbnail_url: ""
-  },
-  {
-    id: "2",
-    title: "The Gravity Mystery",
-    created_at: "2024-11-15",
-    status: "completed",
-    thumbnail_url: ""
-  },
-  {
-    id: "3",
-    title: "Energy and Motion",
-    created_at: "2024-11-08",
-    status: "completed",
-    thumbnail_url: ""
-  },
-  {
-    id: "4",
-    title: "Forces in Action",
-    created_at: "2024-10-28",
-    status: "completed",
-    thumbnail_url: ""
-  }
-];
-
 const ClassroomDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [students] = useState<Student[]>(mockStudents);
-  const [stories] = useState<Story[]>(mockStories);
+  const [classroom, setClassroom] = useState<Classroom | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [storySortBy, setStorySortBy] = useState<"week" | "date">("week");
   const [isDragging, setIsDragging] = useState(false);
   const [materials, setMaterials] = useState<MaterialFile[]>([]);
-  
-  const classroom = {
-    name: "Physics 101",
-    subject: "Physics",
-    grade_level: "10",
-    theme: "Space Adventure"
-  };
+
+  useEffect(() => {
+    const fetchClassroomData = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoading(true);
+        
+        // Fetch classroom with students
+        const classroomResponse = await api.classrooms.getById(id);
+        setClassroom(classroomResponse.classroom);
+        
+        // Map students and add status based on avatar_url
+        const studentsWithStatus = classroomResponse.classroom.students.map(student => ({
+          ...student,
+          status: student.avatar_url ? "generated" as const : "pending" as const
+        }));
+        setStudents(studentsWithStatus);
+        
+        // Fetch chapters
+        const chaptersResponse = await api.classrooms.getChapters(id);
+        setChapters(chaptersResponse.chapters);
+      } catch (error) {
+        console.error("Failed to fetch classroom data:", error);
+        toast.error("Failed to load classroom data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchClassroomData();
+  }, [id]);
 
   // Get tab from URL or default to stories
   const currentTab = searchParams.get('tab') || 'stories';
@@ -184,28 +182,52 @@ const ClassroomDetail = () => {
     return Math.ceil((((date.getTime() - onejan.getTime()) / millisecsInDay) + onejan.getDay() + 1) / 7);
   };
 
-  // Group stories by week or keep sorted by date
-  const groupedStories = () => {
+  // Group chapters by week or keep sorted by date
+  const groupedChapters = () => {
     if (storySortBy === "date") {
-      return [{ label: "All Stories", stories: [...stories].sort((a, b) => 
+      return [{ label: "All Stories", chapters: [...chapters].sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )}];
     }
 
-    const groups: { [key: string]: Story[] } = {};
-    stories.forEach(story => {
-      const date = new Date(story.created_at);
+    const groups: { [key: string]: Chapter[] } = {};
+    chapters.forEach(chapter => {
+      const date = new Date(chapter.created_at);
       const week = getWeek(date);
       const year = date.getFullYear();
       const key = `KW ${week} ${year}`;
       if (!groups[key]) groups[key] = [];
-      groups[key].push(story);
+      groups[key].push(chapter);
     });
 
     return Object.entries(groups)
       .sort(([a], [b]) => b.localeCompare(a))
-      .map(([label, stories]) => ({ label, stories }));
+      .map(([label, chapters]) => ({ label, chapters }));
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading classroom...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!classroom) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Classroom not found</p>
+          <Button onClick={() => navigate("/teacher/dashboard")}>
+            Back to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen">
@@ -238,7 +260,7 @@ const ClassroomDetail = () => {
                   <div className="flex gap-2 flex-wrap mb-3">
                     <Badge className="bg-blue-500/80 backdrop-blur-sm text-white border-blue-300/30">{classroom.subject}</Badge>
                     <Badge className="backdrop-blur-sm bg-background/60 border-border/50" variant="outline">Grade {classroom.grade_level}</Badge>
-                    <Badge className="backdrop-blur-sm bg-background/60 border-border/50" variant="outline">{classroom.theme}</Badge>
+                    <Badge className="backdrop-blur-sm bg-background/60 border-border/50" variant="outline">{classroom.story_theme}</Badge>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>Invite students:</span>
@@ -345,31 +367,37 @@ const ClassroomDetail = () => {
                     </Select>
                   </div>
                   <Button asChild className="backdrop-blur-sm">
-                    <a href="/teacher/story/new">
+                    <a href={`/teacher/classroom/${id}/story/generate`}>
                       <Plus className="w-4 h-4 mr-2" />
                       Generate New Story
                     </a>
                   </Button>
                 </div>
 
-                {stories.length === 0 ? (
+                {chapters.length === 0 ? (
                   <Card className="backdrop-blur-lg bg-card/70 border-border/50">
                     <CardContent className="pt-12 pb-12 text-center space-y-4">
                       <p className="text-muted-foreground">
                         No stories yet. Generate your first story based on a lesson!
                       </p>
+                      <Button asChild className="backdrop-blur-sm">
+                        <a href={`/teacher/classroom/${id}/story/generate`}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Generate Story
+                        </a>
+                      </Button>
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-8">
-                    {groupedStories().map((group, groupIdx) => (
+                    {groupedChapters().map((group, groupIdx) => (
                       <div key={group.label} className="space-y-4">
                         <h3 className="text-lg font-semibold text-foreground/80 backdrop-blur-sm">
                           {group.label}
                         </h3>
-                        {group.stories.map((story, idx) => (
+                        {group.chapters.map((chapter, idx) => (
                           <motion.div
-                            key={story.id}
+                            key={chapter.id}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.3, delay: (groupIdx * 0.1) + (idx * 0.05) }}
@@ -382,9 +410,12 @@ const ClassroomDetail = () => {
                                   </div>
                                   <div className="flex-1 space-y-3">
                                     <div>
-                                      <h3 className="text-xl font-bold text-foreground">{story.title}</h3>
-                                      <p className="text-sm text-muted-foreground">
-                                        Created on {new Date(story.created_at).toLocaleDateString()}
+                                      <h3 className="text-xl font-bold text-foreground">Chapter {chapter.index}</h3>
+                                      <p className="text-sm text-muted-foreground line-clamp-2">
+                                        {chapter.chapter_outline}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Created on {new Date(chapter.created_at).toLocaleDateString()}
                                       </p>
                                     </div>
                                     <Badge className="bg-green-500/80 text-white backdrop-blur-sm border-green-300/30">
@@ -393,7 +424,7 @@ const ClassroomDetail = () => {
                                     </Badge>
                                     <div className="flex gap-2 flex-wrap">
                                       <Button asChild variant="default" className="backdrop-blur-sm">
-                                        <a href={`/teacher/story/${story.id}`}>View Story</a>
+                                        <a href={`/teacher/story/${chapter.id}`}>View Chapter</a>
                                       </Button>
                                       <Button variant="outline" className="backdrop-blur-sm bg-background/60">Export PDF</Button>
                                     </div>
