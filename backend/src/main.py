@@ -56,4 +56,24 @@ async def create_avatar_endpoint(student_id: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Avatar generation failed: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Avatar generation failed: {str(e)}")
+    
+@app.post("/story/create/{classroom_id}")
+async def create_story_endpoint(classroom_id: str):
+    """
+    Create a story for a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        
+    Returns:
+        Created story record
+    """
+    try:
+        # TODO: Implement story creation logic
+        return {"success": True, "message": f"Story creation for classroom {classroom_id} not yet implemented"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Story creation failed: {str(e)}")
+
