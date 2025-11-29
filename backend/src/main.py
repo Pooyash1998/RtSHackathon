@@ -181,16 +181,20 @@ async def create_student(
 @app.post("/students/{student_id}/join-classroom/{classroom_id}")
 async def join_classroom(student_id: str, classroom_id: str):
     """
-    Add a student to a classroom.
+    Add a student to a classroom (many-to-many).
+    Student can be in multiple classrooms.
     
     Args:
         student_id: UUID of the student
         classroom_id: UUID of the classroom to join
         
     Returns:
-        Updated student record
+        Student and classroom info
     """
-    from database.database import supabase, get_classroom, get_student
+    from database.database import (
+        get_classroom, get_student, 
+        add_student_to_classroom, is_student_in_classroom
+    )
     
     try:
         # Verify classroom exists
@@ -203,16 +207,24 @@ async def join_classroom(student_id: str, classroom_id: str):
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
         
-        # Update student's classroom
-        response = supabase.table("students").update({
-            "classroom_id": classroom_id
-        }).eq("id", student_id).execute()
+        # Check if already enrolled
+        if is_student_in_classroom(student_id, classroom_id):
+            return {
+                "success": True, 
+                "message": "Student already enrolled in this classroom",
+                "student": student, 
+                "classroom": classroom
+            }
         
-        if not response.data:
-            raise HTTPException(status_code=500, detail="Failed to join classroom")
+        # Add student to classroom (many-to-many)
+        add_student_to_classroom(student_id, classroom_id)
         
-        updated_student = response.data[0]
-        return {"success": True, "student": updated_student, "classroom": classroom}
+        return {
+            "success": True, 
+            "message": "Student joined classroom successfully",
+            "student": student, 
+            "classroom": classroom
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -296,31 +308,77 @@ async def upload_student_photo(
 @app.get("/students/{student_id}")
 async def get_student(student_id: str):
     """
-    Get a student by ID with their classroom info.
+    Get a student by ID with all their classrooms.
     
     Args:
         student_id: UUID of the student
         
     Returns:
-        Student record with classroom details
+        Student record with list of classrooms
     """
-    from database.database import get_student, get_classroom
+    from database.database import get_student, get_classrooms_by_student
     
     try:
         student = get_student(student_id)
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
         
-        # Get classroom info if student is in a classroom
-        classroom = None
-        if student.get("classroom_id"):
-            classroom = get_classroom(student["classroom_id"])
+        # Get all classrooms the student is enrolled in
+        classrooms = get_classrooms_by_student(student_id)
         
-        return {"success": True, "student": student, "classroom": classroom}
+        return {
+            "success": True, 
+            "student": student, 
+            "classrooms": classrooms
+        }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch student: {str(e)}")
+
+@app.get("/students/{student_id}/classrooms")
+async def get_student_classrooms(student_id: str):
+    """
+    Get all classrooms a student is enrolled in.
+    
+    Args:
+        student_id: UUID of the student
+        
+    Returns:
+        List of classroom records
+    """
+    from database.database import get_classrooms_by_student
+    
+    try:
+        classrooms = get_classrooms_by_student(student_id)
+        return {"success": True, "classrooms": classrooms}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch classrooms: {str(e)}")
+
+@app.delete("/students/{student_id}/leave-classroom/{classroom_id}")
+async def leave_classroom(student_id: str, classroom_id: str):
+    """
+    Remove a student from a classroom.
+    
+    Args:
+        student_id: UUID of the student
+        classroom_id: UUID of the classroom to leave
+        
+    Returns:
+        Success message
+    """
+    from database.database import remove_student_from_classroom
+    
+    try:
+        success = remove_student_from_classroom(student_id, classroom_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Enrollment not found")
+        
+        return {"success": True, "message": "Student left classroom successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to leave classroom: {str(e)}")
 
 @app.post("/avatar/create/{student_id}")
 async def create_avatar_endpoint(student_id: str):

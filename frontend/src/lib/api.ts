@@ -181,14 +181,45 @@ export const api = {
         success: boolean;
         student: {
           id: string;
-          classroom_id: string;
+          classroom_id: string | null;
           name: string;
           interests: string;
           photo_url: string | null;
           avatar_url: string | null;
           created_at: string;
         };
+        classrooms: Array<{
+          id: string;
+          name: string;
+          subject: string;
+          grade_level: string;
+          story_theme: string;
+          design_style: string;
+          created_at: string;
+        }>;
       }>(`/students/${studentId}`),
+    
+    getClassrooms: (studentId: string) =>
+      apiFetch<{
+        success: boolean;
+        classrooms: Array<{
+          id: string;
+          name: string;
+          subject: string;
+          grade_level: string;
+          story_theme: string;
+          design_style: string;
+          created_at: string;
+        }>;
+      }>(`/students/${studentId}/classrooms`),
+    
+    leaveClassroom: (studentId: string, classroomId: string) =>
+      apiFetch<{
+        success: boolean;
+        message: string;
+      }>(`/students/${studentId}/leave-classroom/${classroomId}`, {
+        method: 'DELETE',
+      }),
     
     uploadPhoto: async (file: File) => {
       const formData = new FormData();
