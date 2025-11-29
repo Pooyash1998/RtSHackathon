@@ -25,40 +25,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # CLASSROOM FUNCTIONS
 # ============================================
 
-def create_classroom(
-    name: str,
-    subject: str,
-    grade_level: str,
-    story_theme: str,
-    design_style: str,
-    duration: str
-) -> Dict[str, Any]:
-    """
-    Create a new classroom.
-    
-    Args:
-        name: Classroom name
-        subject: Subject being taught
-        grade_level: Grade level of students
-        story_theme: Theme for the story
-        design_style: Visual style ('manga' or 'comic')
-        duration: Duration of the classroom
-    
-    Returns:
-        Created classroom record
-    """
-    data = {
-        "name": name,
-        "subject": subject,
-        "grade_level": grade_level,
-        "story_theme": story_theme,
-        "design_style": design_style,
-        "duration": duration
-    }
-    
-    response = supabase.table("classrooms").insert(data).execute()
-    return response.data[0] if response.data else None
-
 
 def get_classroom(classroom_id: str) -> Optional[Dict[str, Any]]:
     """
@@ -89,37 +55,6 @@ def get_all_classrooms() -> List[Dict[str, Any]]:
 # STUDENT FUNCTIONS
 # ============================================
 
-def create_student(
-    classroom_id: str,
-    name: str,
-    interests: str,
-    avatar_url: Optional[str] = None,
-    photo_url: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    Create a new student in a classroom.
-    
-    Args:
-        classroom_id: UUID of the classroom
-        name: Student name
-        interests: Student interests
-        avatar_url: URL of generated avatar (optional)
-        photo_url: URL of uploaded photo (optional)
-    
-    Returns:
-        Created student record
-    """
-    data = {
-        "classroom_id": classroom_id,
-        "name": name,
-        "interests": interests,
-        "avatar_url": avatar_url,
-        "photo_url": photo_url
-    }
-    
-    response = supabase.table("students").insert(data).execute()
-    return response.data[0] if response.data else None
-
 
 def get_student(student_id: str) -> Optional[Dict[str, Any]]:
     """
@@ -147,6 +82,21 @@ def get_students_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
     """
     response = supabase.table("students").select("*").eq("classroom_id", classroom_id).order("created_at").execute()
     return response.data
+
+
+def update_student(student_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Update a student record.
+    
+    Args:
+        student_id: UUID of the student
+        updates: Dictionary of fields to update
+    
+    Returns:
+        Updated student record or None if not found
+    """
+    response = supabase.table("students").update(updates).eq("id", student_id).execute()
+    return response.data[0] if response.data else None
 
 
 # ============================================

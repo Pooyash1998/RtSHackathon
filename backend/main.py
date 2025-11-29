@@ -1,10 +1,11 @@
 """
 FastAPI main application entry point.
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+from services.avatar import generate_avatar
 
 # Load environment variables
 load_dotenv()
@@ -38,10 +39,21 @@ async def health_check():
         "supabase_configured": bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"))
     }
 
-# Import and include routers
-from routers import classrooms, student, stories, upload
-
-app.include_router(classrooms.router)
-app.include_router(student.router)
-app.include_router(stories.router)
-app.include_router(upload.router)
+@app.post("/avatar/create/{student_id}")
+async def create_avatar_endpoint(student_id: str):
+    """
+    Generate an avatar for a student.
+    
+    Args:
+        student_id: UUID of the student
+        
+    Returns:
+        Updated student record with avatar_url
+    """
+    try:
+        student = await generate_avatar(student_id)
+        return {"success": True, "student": student}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Avatar generation failed: {str(e)}") 
