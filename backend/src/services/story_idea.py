@@ -6,6 +6,10 @@ import os
 import json
 from typing import List, Dict, Any
 from openai import AsyncOpenAI
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from database.database import get_classroom, get_students_by_classroom
 
 # Initialize OpenAI client
