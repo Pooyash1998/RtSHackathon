@@ -27,9 +27,10 @@ async def generate_avatar(student_id: str) -> Dict[str, Any]:
     if not student:
         raise ValueError(f"Student with ID {student_id} not found")
 
-    # Get classroom to retrieve design_style
-    classroom_id = student.get("classroom_id")
-    classroom = get_classroom(classroom_id) if classroom_id else None
+    # Get classroom to retrieve design_style (use first classroom if student is in multiple)
+    from database.database import get_classrooms_by_student
+    classrooms = get_classrooms_by_student(student_id)
+    classroom = classrooms[0] if classrooms else None
 
     # Get API key
     api_key = os.getenv("BLACK_FOREST_API_KEY")

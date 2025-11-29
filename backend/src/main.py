@@ -147,12 +147,11 @@ async def create_student(
     from services.avatar import generate_avatar
     
     try:
-        # Step 1: Create student record with photo_url
+        # Step 1: Create student record with photo_url (no classroom_id)
         student_data = {
             "name": name,
             "interests": interests,
-            "photo_url": photo_url,  # Real photo saved first
-            "classroom_id": None  # No classroom initially
+            "photo_url": photo_url  # Real photo saved first
         }
         
         response = supabase.table("students").insert(student_data).execute()
