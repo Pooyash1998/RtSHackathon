@@ -4,8 +4,9 @@ Avatar generation service using Black Forest Labs API.
 import os
 import asyncio
 import httpx
+import uuid
 from typing import Optional, Dict, Any
-from database.database import get_student, update_student, get_classroom
+from database.database import get_student, update_student, get_classroom, supabase
 
 
 async def generate_avatar(student_id: str) -> Dict[str, Any]:
@@ -41,11 +42,14 @@ async def generate_avatar(student_id: str) -> Dict[str, Any]:
     prompt = _build_avatar_prompt(student, classroom)
     photo_url = student.get("photo_url")
 
-    # Call Black Forest Labs API
-    avatar_url = await _call_black_forest_api(prompt, api_key, photo_url)
+    # Call Black Forest Labs API to generate avatar
+    bfl_avatar_url = await _call_black_forest_api(prompt, api_key, photo_url)
 
-    # Update student record with avatar URL
-    updated_student = update_student(student_id, {"avatar_url": avatar_url})
+    # Download and upload to Supabase storage
+    supabase_avatar_url = await _upload_avatar_to_storage(bfl_avatar_url, student_id)
+
+    # Update student record with Supabase avatar URL
+    updated_student = update_student(student_id, {"avatar_url": supabase_avatar_url})
 
     return updated_student
 
@@ -80,6 +84,7 @@ def _build_avatar_prompt(student: Dict[str, Any], classroom: Optional[Dict[str, 
 
 
 async def _call_black_forest_api(prompt: str, api_key: str, image_url: Optional[str] = None) -> str:
+
     """
     Call Black Forest Labs API to generate an image.
     
@@ -154,3 +159,61 @@ async def _call_black_forest_api(prompt: str, api_key: str, image_url: Optional[
                 continue
 
         raise TimeoutError("Image generation timed out after 120 seconds")
+
+
+async def _upload_avatar_to_storage(image_url: str, student_id: str) -> str:
+    """
+    Download image from URL and upload to Supabase Avatars bucket.
+    
+    Args:
+        image_url: URL of the generated image from Black Forest Labs
+        student_id: UUID of the student (used for filename)
+        
+    Returns:
+        Public URL of the uploaded image in Supabase storage
+        
+    Raises:
+        httpx.HTTPError: If image download fails
+        Exception: If upload to Supabase fails
+    """
+    print(f"Downloading avatar from Black Forest Labs: {image_url}")
+    
+    # Download the image from Black Forest Labs
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.get(image_url)
+        response.raise_for_status()
+        image_data = response.content
+    
+    print(f"Downloaded {len(image_data)} bytes")
+    
+    # Generate filename with student ID
+    filename = f"{student_id}.png"
+    
+    try:
+        # Upload to Supabase storage in Avatars bucket (with upsert to replace if exists)
+        print(f"Uploading to Supabase Avatars bucket: {filename}")
+        
+        storage_response = supabase.storage.from_("Avatars").upload(
+            path=filename,
+            file=image_data,
+            file_options={
+                "content-type": "image/png",
+                "cache-control": "3600",
+                "upsert": "true"  # Replace if already exists
+            }
+        )
+        
+        # Check for upload errors
+        if hasattr(storage_response, 'error') and storage_response.error:
+            raise Exception(f"Supabase upload error: {storage_response.error}")
+            
+    except Exception as upload_error:
+        print(f"Upload error: {upload_error}")
+        raise Exception(f"Failed to upload avatar to Supabase: {str(upload_error)}")
+    
+    # Get public URL
+    public_url = supabase.storage.from_("Avatars").get_public_url(filename)
+    
+    print(f"Avatar uploaded successfully: {public_url}")
+    
+    return public_url

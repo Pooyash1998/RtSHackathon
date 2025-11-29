@@ -165,9 +165,13 @@ async def create_student(
         # Step 2: Generate avatar based on the student's photo and interests
         # This will update the avatar_url in the database
         try:
+            print(f"Starting avatar generation for student {student_id}")
             student = await generate_avatar(student_id)
+            print(f"Avatar generation completed successfully")
         except Exception as e:
-            print(f"Avatar generation failed: {e}")
+            print(f"❌ Avatar generation failed: {e}")
+            import traceback
+            traceback.print_exc()
             # Continue even if avatar generation fails
             # Student still has their real photo
         
