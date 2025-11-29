@@ -31,6 +31,7 @@ const CreateClassroom = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState<MaterialFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -48,6 +49,59 @@ const CreateClassroom = () => {
         description: ""
       }));
       setFiles([...files, ...newFiles]);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Keep the dragging state active
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only set isDragging to false if we're leaving the drop zone entirely
+    // Check if the related target is outside the drop zone
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    const pdfFiles = droppedFiles.filter(file => file.type === 'application/pdf');
+    
+    if (pdfFiles.length !== droppedFiles.length) {
+      toast.error("Only PDF files are allowed");
+    }
+
+    if (pdfFiles.length > 0) {
+      const newFiles = pdfFiles.map(file => ({
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        description: ""
+      }));
+      setFiles([...files, ...newFiles]);
+      toast.success(`${pdfFiles.length} file(s) added`);
     }
   };
 
@@ -207,7 +261,17 @@ const CreateClassroom = () => {
                 <div className="space-y-6">
                   <div className="space-y-3">
                     <Label>Learning Materials (Optional)</Label>
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                    <div 
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
+                        isDragging 
+                          ? 'border-primary bg-primary/10 scale-[1.02]' 
+                          : 'border-muted-foreground/25 hover:border-primary/50'
+                      }`}
+                      onDragEnter={handleDragEnter}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
                       <input
                         type="file"
                         id="file-upload"
@@ -216,13 +280,13 @@ const CreateClassroom = () => {
                         multiple
                         onChange={handleFileUpload}
                       />
-                      <label htmlFor="file-upload" className="cursor-pointer">
-                        <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                        <div className="text-sm font-medium text-foreground mb-1">
-                          Click to upload or drag PDF files
+                      <label htmlFor="file-upload" className="cursor-pointer block">
+                        <Upload className={`w-12 h-12 mx-auto mb-4 transition-all ${isDragging ? 'text-primary scale-110' : 'text-muted-foreground'}`} />
+                        <div className={`text-sm font-medium mb-1 transition-colors ${isDragging ? 'text-primary' : 'text-foreground'}`}>
+                          {isDragging ? '📄 Drop PDF files here!' : 'Click to upload or drag PDF files'}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Max 10MB per file
+                          Max 10MB per file • PDF only
                         </div>
                       </label>
                     </div>

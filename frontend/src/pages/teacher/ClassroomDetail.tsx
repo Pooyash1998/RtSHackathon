@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter } from "lucide-react";
+import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -26,6 +29,12 @@ interface Story {
   status: "generating" | "completed";
   progress?: number;
   thumbnail_url: string;
+}
+
+interface MaterialFile {
+  file: File;
+  title: string;
+  description: string;
 }
 
 const mockStudents: Student[] = [
@@ -72,6 +81,8 @@ const ClassroomDetail = () => {
   const [students] = useState<Student[]>(mockStudents);
   const [stories] = useState<Story[]>(mockStories);
   const [storySortBy, setStorySortBy] = useState<"week" | "date">("week");
+  const [isDragging, setIsDragging] = useState(false);
+  const [materials, setMaterials] = useState<MaterialFile[]>([]);
   
   const classroom = {
     name: "Physics 101",
@@ -80,8 +91,8 @@ const ClassroomDetail = () => {
     theme: "Space Adventure"
   };
 
-  // Get tab from URL or default to students
-  const currentTab = searchParams.get('tab') || 'students';
+  // Get tab from URL or default to stories
+  const currentTab = searchParams.get('tab') || 'stories';
 
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
@@ -92,6 +103,78 @@ const ClassroomDetail = () => {
     const link = `${window.location.origin}/student/join/${id}`;
     navigator.clipboard.writeText(link);
     toast.success("Invite link copied to clipboard!");
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map(file => ({
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+        description: ""
+      }));
+      setMaterials([...materials, ...newFiles]);
+      toast.success(`${newFiles.length} file(s) added`);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    const pdfFiles = droppedFiles.filter(file => file.type === 'application/pdf');
+    
+    if (pdfFiles.length !== droppedFiles.length) {
+      toast.error("Only PDF files are allowed");
+    }
+
+    if (pdfFiles.length > 0) {
+      const newFiles = pdfFiles.map(file => ({
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        description: ""
+      }));
+      setMaterials([...materials, ...newFiles]);
+      toast.success(`${pdfFiles.length} file(s) added`);
+    }
+  };
+
+  const updateMaterial = (index: number, field: keyof MaterialFile, value: string) => {
+    const updatedMaterials = [...materials];
+    updatedMaterials[index] = { ...updatedMaterials[index], [field]: value };
+    setMaterials(updatedMaterials);
+  };
+
+  const removeMaterial = (index: number) => {
+    setMaterials(materials.filter((_, i) => i !== index));
   };
 
   // Get calendar week from date
@@ -331,16 +414,100 @@ const ClassroomDetail = () => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3 }}
+                  className="space-y-6"
                 >
-                  <div className="backdrop-blur-lg bg-card/50 border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-                    <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <div className="text-sm font-medium text-foreground mb-1">
-                      Click to upload or drag PDF files
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Max 10MB per file
-                    </div>
+                  {/* Upload Area */}
+                  <div 
+                    className={`backdrop-blur-lg bg-card/50 border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
+                      isDragging 
+                        ? 'border-primary bg-primary/10 scale-[1.02]' 
+                        : 'border-muted-foreground/25 hover:border-primary/50'
+                    }`}
+                    onDragEnter={handleDragEnter}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <input
+                      type="file"
+                      id="material-upload"
+                      className="hidden"
+                      accept=".pdf"
+                      multiple
+                      onChange={handleFileUpload}
+                    />
+                    <label htmlFor="material-upload" className="cursor-pointer block">
+                      <Upload className={`w-12 h-12 mx-auto mb-4 transition-all ${isDragging ? 'text-primary scale-110' : 'text-muted-foreground'}`} />
+                      <div className={`text-sm font-medium mb-1 transition-colors ${isDragging ? 'text-primary' : 'text-foreground'}`}>
+                        {isDragging ? '📄 Drop PDF files here!' : 'Click to upload or drag PDF files'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Max 10MB per file • PDF only
+                      </div>
+                    </label>
                   </div>
+
+                  {/* Uploaded Materials List */}
+                  {materials.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-foreground">Uploaded Materials ({materials.length})</h3>
+                      <div className="space-y-4">
+                        {materials.map((materialFile, index) => (
+                          <Card key={index} className="backdrop-blur-lg bg-card/70 border-border/50">
+                            <CardContent className="pt-4 space-y-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className="w-10 h-10 rounded bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xl">📄</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-foreground truncate">{materialFile.file.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {(materialFile.file.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => removeMaterial(index)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor={`material-title-${index}`}>Material Title *</Label>
+                                <Input
+                                  id={`material-title-${index}`}
+                                  placeholder="e.g., Week 3: Newton's Laws"
+                                  value={materialFile.title}
+                                  onChange={(e) => updateMaterial(index, 'title', e.target.value)}
+                                  className="backdrop-blur-sm bg-background/60"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor={`material-description-${index}`}>Description (Optional)</Label>
+                                <Textarea
+                                  id={`material-description-${index}`}
+                                  placeholder="Brief description of this material"
+                                  value={materialFile.description}
+                                  onChange={(e) => updateMaterial(index, 'description', e.target.value)}
+                                  rows={2}
+                                  className="backdrop-blur-sm bg-background/60"
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                      <Button className="w-full backdrop-blur-sm">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Save {materials.length} Material{materials.length > 1 ? 's' : ''}
+                      </Button>
+                    </div>
+                  )}
                 </motion.div>
               </TabsContent>
             </Tabs>
