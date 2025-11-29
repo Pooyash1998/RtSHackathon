@@ -16,8 +16,6 @@ __pycache__
 .python-version
 
 # dotenv
-.env
-.env.*
 
 # MacOS system files
 .DS_Store
