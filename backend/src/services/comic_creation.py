@@ -1,5 +1,5 @@
 """
-chapter_commit.py
+comic_creation.py
 
 Step 2 of the pipeline:
 - Load chapter + stored state (teacher_outline, story_ideas)
@@ -14,6 +14,7 @@ Step 2 of the pipeline:
 import os
 import json
 import time
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -25,6 +26,7 @@ from database.database import (
     get_classroom,
     get_students_by_classroom,
     get_chapter,
+    update_chapter,
     create_panel,
 )
 
@@ -35,15 +37,15 @@ from database.database import (
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY_HERE")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.1")
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Support both BFL_API_KEY and BLACK_FOREST_API_KEY for compatibility
 BFL_API_KEY = os.getenv("BFL_API_KEY") or os.getenv("BLACK_FOREST_API_KEY", "YOUR_BFL_API_KEY_HERE")
 BFL_API_BASE = os.getenv("BFL_API_BASE", "https://api.bfl.ai")
-# Use FLUX.2 [pro] endpoint
-BFL_MODEL_ENDPOINT = os.getenv("BFL_MODEL_ENDPOINT", "flux-pro-1.1")
+
+BFL_MODEL_ENDPOINT = os.getenv("BFL_MODEL_ENDPOINT", "flux-2-pro")
 
 SUPABASE_IMAGES_BUCKET = os.getenv("SUPABASE_IMAGES_BUCKET")
 
@@ -84,55 +86,83 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
       }
     """
 
+    print(f"\n{'='*60}")
+    print(f"🎬 Starting Comic Generation")
+    print(f"{'='*60}")
+    print(f"Chapter ID: {chapter_id}")
+    print(f"Chosen Idea: {chosen_idea_id}")
+    
+    print("\n�️  eStep 0: Cleaning up existing panels (if any)...")
+    # Delete any existing panels for this chapter to allow regeneration
+    try:
+        supabase.table("panels").delete().eq("chapter_id", chapter_id).execute()
+        print("✓ Existing panels cleared")
+    except Exception as e:
+        print(f"⚠️  No existing panels to clear: {e}")
+    
+    print("\n📚 Step 1: Fetching chapter data...")
     chapter = get_chapter(chapter_id)
     if chapter is None:
         raise ValueError(f"Chapter {chapter_id} not found")
+    print(f"✓ Chapter found: Index {chapter.get('index')}")
 
     classroom_id: str = chapter["classroom_id"]
+    print(f"\n🏫 Step 2: Fetching classroom data...")
     classroom = get_classroom(classroom_id)
     if classroom is None:
         raise ValueError(f"Classroom {classroom_id} not found")
+    print(f"✓ Classroom: {classroom.get('name')} ({classroom.get('subject')})")
 
+    print(f"\n👥 Step 3: Fetching students...")
     students = get_students_by_classroom(classroom_id)
+    print(f"✓ Found {len(students)} students")
 
     # Build lookup: student name (lowercased) -> full record (for avatars)
     students_by_name: Dict[str, Dict[str, Any]] = {
         s["name"].strip().lower(): s for s in students
     }
 
-    # Parse existing state from chapter_outline TEXT
-    try:
-        state = json.loads(chapter["chapter_outline"])
-    except json.JSONDecodeError:
+    # Get story ideas from the dedicated field
+    print(f"\n💡 Step 4: Loading story ideas...")
+    story_ideas = chapter.get("story_ideas", [])
+    if not story_ideas:
         raise ValueError(
-            f"chapter_outline for chapter {chapter_id} is not valid JSON; "
-            "start_chapter must be called first to initialize state."
+            f"No story ideas found for chapter {chapter_id}; "
+            "start_chapter must be called first to generate ideas."
         )
+    print(f"✓ Found {len(story_ideas)} story ideas")
 
-    teacher_outline = state.get("teacher_outline", "")
-    story_ideas = state.get("story_ideas", [])
+    teacher_outline = chapter.get("original_prompt", "")
 
+    # Find the chosen idea
     chosen_idea: Optional[Dict[str, Any]] = next(
         (idea for idea in story_ideas if idea["id"] == chosen_idea_id),
         None,
     )
     if chosen_idea is None:
         raise ValueError(f"Chosen idea id {chosen_idea_id} not found for chapter {chapter_id}")
+    print(f"✓ Selected: {chosen_idea.get('title')}")
 
     # Generate full script + panels via OpenAI
+    print(f"\n🤖 Step 5: Generating comic script with OpenAI...")
+    print(f"   Model: {OPENAI_MODEL}")
     script = generate_full_script_and_panels(
         classroom=classroom,
         students=students,
         teacher_outline=teacher_outline,
         chosen_idea=chosen_idea,
     )
+    print(f"✓ Script generated: {script.get('episode_title')}")
+    print(f"✓ Panels to generate: {len(script.get('panels', []))}")
 
     # Build FLUX prompts
+    print(f"\n📝 Step 6: Building FLUX prompts...")
     flux_prompts = build_flux_prompts_from_script(
         classroom=classroom,
         students=students,
         script=script,
     )
+    print(f"✓ Built {len(flux_prompts)} prompts")
 
     # Map panel index -> panel dict for convenience
     panels_by_index: Dict[int, Dict[str, Any]] = {
@@ -140,6 +170,10 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
     }
 
     # Generate images and create panel rows
+    print(f"\n🎨 Step 7: Generating images with FLUX...")
+    print(f"   Endpoint: {BFL_MODEL_ENDPOINT}")
+    print(f"   This may take 1-2 minutes per panel...\n")
+    
     panel_index_to_url: Dict[int, str] = {}
     previous_panel_image_url: Optional[str] = None
 
@@ -149,6 +183,8 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
         prompt = panel_prompt["prompt"]
         aspect_ratio = panel_prompt["aspect_ratio"]
 
+        print(f"   Panel {idx}/{len(flux_prompts)}:")
+        
         panel = panels_by_index.get(idx, {})
         featured_students = panel.get("featured_students") or []
         dialogue = panel.get("dialogue") or []
@@ -187,35 +223,43 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
         if len(reference_images) > 8:
             reference_images = reference_images[:8]
 
+        print(f"      - Using {len(reference_images)} reference images")
+        print(f"      - Calling FLUX API...")
+        
         image_bytes, source_url = call_flux_and_download(
             prompt,
             aspect_ratio=aspect_ratio,
             reference_images=reference_images,
         )
+        
+        print(f"      ✓ Image generated ({len(image_bytes)} bytes)")
 
+        print(f"      - Uploading to storage...")
         image_url = upload_image_and_get_url(
             img_bytes=image_bytes,
             chapter_id=chapter_id,
             panel_index=idx,
             fallback_url=source_url,
         )
+        print(f"      ✓ Uploaded: {image_url[:60]}...")
 
         create_panel(chapter_id=chapter_id, index=idx, image=image_url)
+        print(f"      ✓ Panel {idx} complete!\n")
 
         panel_index_to_url[idx] = image_url
         previous_panel_image_url = image_url
 
-    # Update chapter_outline with full state
-    full_state = {
-        "status": "ready",
-        "teacher_outline": teacher_outline,
-        "story_ideas": story_ideas,
+    # Update chapter with story script and status
+    print(f"\n💾 Step 8: Saving chapter data...")
+    update_chapter(chapter_id, {
         "chosen_idea_id": chosen_idea_id,
-        "script": script,
-    }
-    _update_chapter_outline(chapter_id, full_state)
+        "story_script": script,
+        "status": "ready",
+    })
+    print(f"✓ Chapter updated to 'ready' status")
 
     # Build structured payload for frontend
+    print(f"\n📦 Step 9: Building response payload...")
     panels_output: List[Dict[str, Any]] = []
     for panel in script["panels"]:
         idx = panel["index"]
@@ -231,7 +275,7 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
             }
         )
 
-    return {
+    result = {
         "chapter_id": chapter_id,
         "chapter_index": chapter["index"],
         "classroom_id": classroom_id,
@@ -239,6 +283,15 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
         "learning_objectives": script.get("learning_objectives", []),
         "panels": panels_output,
     }
+    
+    print(f"\n{'='*60}")
+    print(f"✅ Comic Generation Complete!")
+    print(f"{'='*60}")
+    print(f"Episode: {script['episode_title']}")
+    print(f"Panels: {len(panels_output)}")
+    print(f"{'='*60}\n")
+    
+    return result
 
 
 # ─────────────────────────────────────────────────────────────
@@ -307,14 +360,19 @@ def generate_full_script_and_panels(
 
     system_prompt = (
         "You write scripts for short educational comics. "
-        "Target: kids 6–16, clear and simple language, 4–8 panels per chapter. "
+        "Target: kids 6–16, clear and simple language, 8–12 panels per chapter. "
         "Always respond with a single JSON object following the requested schema."
     )
 
     user_prompt = (
         "Using the given classroom, students, teacher_outline and chosen_idea, write a single comic chapter.\n\n"
         "Constraints:\n"
-        "- 4 to 8 panels total.\n"
+        "- 8 to 12 panels total.\n"
+        "- Panels 1–3: introduce the situation and characters.\n"
+        "- Middle panels: show a small challenge or question related to the learning topic.\n"
+        "- Final panels: resolve the situation and recap the key learning objective.\n"
+        "- Each panel should have at most 1 narration box and at most 2 speech bubbles.\n"
+        "- Each narration or dialogue line must be very short (max 10 words).\n"
         "- Each panel should be visually distinct and move the story forward.\n"
         "- Use the students' names in dialogue sometimes to make it personal.\n"
         "- Keep dialogue lines short (max 15 words).\n"
@@ -377,6 +435,29 @@ def generate_full_script_and_panels(
 # Flux prompt construction
 # ─────────────────────────────────────────────────────────────
 
+def _panel_text_for_prompt(panel: Dict[str, Any]) -> str:
+    """
+    Convert narration + dialogue into short, structured lines for FLUX.
+    """
+    lines: List[str] = []
+
+    narration = (panel.get("narration") or "").strip()
+    if narration:
+        lines.append(f'NARRATION (top of panel): "{narration}"')
+
+    for line in panel.get("dialogue") or []:
+        speaker = (line.get("speaker") or "").strip()
+        text = (line.get("text") or "").strip()
+        if not text:
+            continue
+        if speaker:
+            lines.append(f'SPEECH (near {speaker.upper()}): "{text}"')
+        else:
+            lines.append(f'SPEECH: "{text}"')
+
+    return " | ".join(lines)
+
+
 def build_flux_prompts_from_script(
     classroom: Dict[str, Any],
     students: List[Dict[str, Any]],
@@ -390,6 +471,9 @@ def build_flux_prompts_from_script(
         {"index": 1, "prompt": "...", "aspect_ratio": "3:2"},
         ...
       ]
+
+    The prompt now also tells FLUX.2 to render the actual narration + dialogue text
+    inside comic-style speech bubbles / narration boxes.
     """
 
     design_style = classroom.get("design_style", "comic")
@@ -428,6 +512,7 @@ def build_flux_prompts_from_script(
         else:
             cast_phrase = "Show a small group of students and a teacher."
 
+        # Build the base visual prompt
         prompt = (
             f"A single comic panel {style_phrase}. "
             f"Scene setting: {setting}. "
@@ -441,6 +526,18 @@ def build_flux_prompts_from_script(
         if theme_phrase:
             prompt += f"Match the ongoing story theme: {theme_phrase}. "
 
+        # NEW: tell FLUX.2 to render the actual text from this panel
+        panel_text = _panel_text_for_prompt(panel)
+        if panel_text:
+            prompt += (
+                "Write the following text clearly inside comic-style speech bubbles "
+                "and narration boxes. Use bold, uppercase comic lettering in black "
+                "on white bubbles/boxes, with no distortion or extra flourishes. "
+                "Do NOT paraphrase or change the wording. Use every line exactly as given. "
+                "Text to write (each '|' separates a different bubble or box): "
+                f"{panel_text} "
+            )
+
         # We still track an aspect ratio string and convert to width/height later
         aspect_ratio = "3:2"
 
@@ -453,6 +550,7 @@ def build_flux_prompts_from_script(
         )
 
     return flux_prompts
+
 
 
 # ─────────────────────────────────────────────────────────────
@@ -511,6 +609,7 @@ def call_flux_and_download(
         "height": height,
         "output_format": "png",
         "safety_tolerance": 2,
+        "prompt_upsampling": False,
     }
 
     # Attach reference images as input_image..input_image_8
@@ -529,12 +628,16 @@ def call_flux_and_download(
     if not polling_url:
         raise RuntimeError(f"FLUX submit response missing polling_url: {submit_data}")
 
+    print(f"         → Request submitted, polling for result...")
     start = time.time()
+    poll_count = 0
+    
     while True:
         if time.time() - start > timeout_seconds:
             raise TimeoutError("Timed out while polling FLUX generation result")
 
         time.sleep(poll_interval)
+        poll_count += 1
 
         poll_resp = requests.get(
             polling_url,
@@ -548,7 +651,15 @@ def call_flux_and_download(
         poll_data = poll_resp.json()
 
         status = poll_data.get("status")
+        
+        if poll_count % 5 == 0:  # Print every 5 polls (~3.75 seconds)
+            elapsed = time.time() - start
+            print(f"         → Still generating... ({elapsed:.1f}s elapsed, status: {status})")
+        
         if status == "Ready":
+            elapsed = time.time() - start
+            print(f"         → Generation complete! ({elapsed:.1f}s)")
+            
             result = poll_data.get("result", {})
             sample_url = result.get("sample")
             if not sample_url:
@@ -570,13 +681,16 @@ def upload_image_and_get_url(
 ) -> str:
     """
     Upload image bytes to Supabase Storage if SUPABASE_IMAGES_BUCKET is configured.
+    Uses unique UUID for each image to prevent overwriting on regeneration.
     Otherwise, fall back to the original FLUX delivery URL (short-lived, not ideal for production).
     """
 
     if not SUPABASE_IMAGES_BUCKET:
         return fallback_url
 
-    path = f"chapters/{chapter_id}/panel_{panel_index:02d}.png"
+    # Generate unique ID for this image
+    image_id = str(uuid.uuid4())
+    path = f"chapters/{chapter_id}/panel_{panel_index:02d}_{image_id}.png"
 
     try:
         supabase.storage.from_(SUPABASE_IMAGES_BUCKET).upload(
@@ -603,18 +717,7 @@ def upload_image_and_get_url(
         return fallback_url
 
 
-# ─────────────────────────────────────────────────────────────
-# Internal DB helper
-# ─────────────────────────────────────────────────────────────
 
-def _update_chapter_outline(chapter_id: str, state: Dict[str, Any]) -> None:
-    """
-    Persist the JSON state into chapters.chapter_outline (TEXT).
-    """
-
-    supabase.table("chapters").update(
-        {"chapter_outline": json.dumps(state, ensure_ascii=False)}
-    ).eq("id", chapter_id).execute()
 
 
 # ─────────────────────────────────────────────────────────────

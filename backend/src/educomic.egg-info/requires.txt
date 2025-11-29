@@ -4,6 +4,7 @@ python-multipart
 supabase
 openai
 httpx
+requests
 pydantic
 pydantic-settings
 reportlab

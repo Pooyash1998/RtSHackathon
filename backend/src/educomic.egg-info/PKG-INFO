@@ -9,6 +9,7 @@ Requires-Dist: python-multipart
 Requires-Dist: supabase
 Requires-Dist: openai
 Requires-Dist: httpx
+Requires-Dist: requests
 Requires-Dist: pydantic
 Requires-Dist: pydantic-settings
 Requires-Dist: reportlab
