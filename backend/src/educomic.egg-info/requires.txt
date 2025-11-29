@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-multipart
+supabase
+openai
+httpx
+pydantic
+pydantic-settings
+reportlab
+Pillow
+python-dotenv
+
+[dev]
+pytest
+pytest-asyncio
+hypothesis

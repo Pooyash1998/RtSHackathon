@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: educomic
+Version: 1.0.0
+Summary: Educational comic generation platform
+Requires-Python: >=3.10
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: python-multipart
+Requires-Dist: supabase
+Requires-Dist: openai
+Requires-Dist: httpx
+Requires-Dist: pydantic
+Requires-Dist: pydantic-settings
+Requires-Dist: reportlab
+Requires-Dist: Pillow
+Requires-Dist: python-dotenv
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: hypothesis; extra == "dev"
