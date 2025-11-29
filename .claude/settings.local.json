@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/Users/tim/.nvm/versions/node/v22.11.0/bin/npx tailwindcss init -p)"
+      "Bash(/Users/tim/.nvm/versions/node/v22.11.0/bin/npx tailwindcss init -p)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(find:*)",
+      "Bash(if [ -f src/components/NavLink.tsx ])",
+      "Bash(then mv src/components/NavLink.tsx src/components/shared/)",
+      "Bash(else echo \"NavLink doesn''t exist\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

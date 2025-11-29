@@ -31,25 +31,25 @@ const Landing = () => {
             Transform Learning with<br />
             <span className="text-primary">Personalized Graphic Novels</span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
             AI-powered stories featuring your students as the main characters
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-            <Button 
-              asChild 
-              size="lg" 
+            <Button
+              asChild
+              size="lg"
               className="w-full sm:w-auto text-lg px-8 py-6"
             >
               <Link to="/teacher/dashboard">
                 Get Started as Teacher
               </Link>
             </Button>
-            
-            <Button 
-              asChild 
-              size="lg" 
+
+            <Button
+              asChild
+              size="lg"
               variant="outline"
               className="w-full sm:w-auto text-lg px-8 py-6"
             >

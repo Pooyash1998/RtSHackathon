@@ -8,8 +8,11 @@ export interface Student {
   created_at: string;
 }
 
-export interface StudentCreate {
-  classroom_id: string;
-  name: string;
-  interests: string;
+export interface StudentWithClassrooms extends Student {
+  classrooms: Array<{
+    id: string;
+    name: string;
+    subject: string;
+    avatar_url: string | null;
+  }>;
 }
