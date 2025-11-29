@@ -543,7 +543,7 @@ const ClassroomDetail = () => {
                     </Select>
                   </div>
                   <Button asChild className="backdrop-blur-sm">
-                    <a href={`/teacher/classroom/${id}/story/generate`}>
+                    <a href={`/teacher/classroom/${id}/story/new`}>
                       <Plus className="w-4 h-4 mr-2" />
                       Generate New Story
                     </a>
@@ -581,14 +581,22 @@ const ClassroomDetail = () => {
                             <Card className="backdrop-blur-lg bg-card/70 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl">
                               <CardContent className="pt-6">
                                 <div className="flex flex-col md:flex-row gap-4">
-                                  <div className="w-full md:w-32 h-32 bg-muted/50 backdrop-blur-sm rounded-lg flex items-center justify-center border border-border/30">
-                                    <span className="text-4xl">📚</span>
+                                  <div className="w-full md:w-32 h-32 bg-muted/50 backdrop-blur-sm rounded-lg flex items-center justify-center border border-border/30 overflow-hidden">
+                                    {chapter.thumbnail_url ? (
+                                      <img 
+                                        src={chapter.thumbnail_url} 
+                                        alt={`Chapter ${chapter.index}`}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <span className="text-4xl">📚</span>
+                                    )}
                                   </div>
                                   <div className="flex-1 space-y-3">
                                     <div>
                                       <h3 className="text-xl font-bold text-foreground">Chapter {chapter.index}</h3>
                                       <p className="text-sm text-muted-foreground line-clamp-2">
-                                        {chapter.chapter_outline}
+                                        {chapter.chapter_outline || chapter.original_prompt}
                                       </p>
                                       <p className="text-xs text-muted-foreground mt-1">
                                         Created on {new Date(chapter.created_at).toLocaleDateString()}

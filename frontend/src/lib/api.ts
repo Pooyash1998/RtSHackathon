@@ -103,6 +103,8 @@ export const api = {
           id: string;
           index: number;
           chapter_outline: string;
+          original_prompt: string;
+          thumbnail_url: string | null;
           created_at: string;
         }>;
       }>(`/classrooms/${classroomId}/chapters`),
@@ -184,6 +186,36 @@ export const api = {
           theme: string;
         }>;
       }>(`/story/generate-options?classroom_id=${classroomId}&lesson_prompt=${encodeURIComponent(lessonPrompt)}`, {
+        method: 'POST',
+      }),
+    
+    startChapter: (classroomId: string, lessonPrompt: string) =>
+      apiFetch<{
+        success: boolean;
+        chapter: {
+          id: string;
+          classroom_id: string;
+          index: number;
+          original_prompt: string;
+          story_ideas: Array<{
+            id: string;
+            title: string;
+            summary: string;
+            theme: string;
+          }>;
+          chosen_idea_id: string | null;
+          status: string;
+          created_at: string;
+        };
+      }>(`/classrooms/${classroomId}/chapters/start?lesson_prompt=${encodeURIComponent(lessonPrompt)}`, {
+        method: 'POST',
+      }),
+    
+    chooseIdea: (chapterId: string, ideaId: string, thumbnailUrl?: string) =>
+      apiFetch<{
+        success: boolean;
+        chapter: any;
+      }>(`/chapters/${chapterId}/choose-idea?idea_id=${ideaId}${thumbnailUrl ? `&thumbnail_url=${encodeURIComponent(thumbnailUrl)}` : ''}`, {
         method: 'POST',
       }),
   },

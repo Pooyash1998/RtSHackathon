@@ -37,7 +37,7 @@ const App = () => (
           <Route path="/teacher/dashboard" element={<TeacherLayout><TeacherDashboard /></TeacherLayout>} />
           <Route path="/teacher/classroom/new" element={<TeacherLayout><CreateClassroom /></TeacherLayout>} />
           <Route path="/teacher/classroom/:id" element={<TeacherLayout><ClassroomDetail /></TeacherLayout>} />
-          <Route path="/teacher/story/new" element={<TeacherLayout><StoryGenerator /></TeacherLayout>} />
+          <Route path="/teacher/classroom/:classroomId/story/new" element={<TeacherLayout><StoryGenerator /></TeacherLayout>} />
           <Route path="/teacher/story/:id" element={<TeacherLayout><StoryViewer /></TeacherLayout>} />
 
           {/* Student routes */}

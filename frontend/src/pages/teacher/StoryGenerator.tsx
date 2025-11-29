@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { generateStoryThumbnails } from "@/services/thumbnailGenerator";
 
 interface StoryOption {
   id: string;
@@ -45,6 +46,29 @@ const StoryGenerator = () => {
   const [storyOptions, setStoryOptions] = useState<StoryOption[]>([]);
   const [selectedStory, setSelectedStory] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [chapterId, setChapterId] = useState<string | null>(null);
+  const [classroom, setClassroom] = useState<{ name: string; subject: string; grade_level: string } | null>(null);
+  const [thumbnails, setThumbnails] = useState<Map<string, string | null>>(new Map());
+  const [isGeneratingThumbnails, setIsGeneratingThumbnails] = useState(false);
+
+  // Fetch classroom data on mount
+  useEffect(() => {
+    if (classroomId) {
+      api.classrooms.getById(classroomId)
+        .then(response => {
+          if (response.success && response.classroom) {
+            setClassroom({
+              name: response.classroom.name,
+              subject: response.classroom.subject,
+              grade_level: response.classroom.grade_level
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch classroom:', error);
+        });
+    }
+  }, [classroomId]);
 
   const generateOptions = async () => {
     if (!classroomId) {
@@ -54,10 +78,31 @@ const StoryGenerator = () => {
 
     setIsGenerating(true);
     try {
-      const response = await api.story.generateOptions(classroomId, lessonInput);
-      setStoryOptions(response.options);
+      // Start chapter and generate story options
+      const response = await api.story.startChapter(classroomId, lessonInput);
+      console.log("Chapter started:", response.chapter);
+      
+      setChapterId(response.chapter.id);
+      const options = response.chapter.story_ideas || [];
+      setStoryOptions(options);
       setStep(2);
       toast.success("Story options generated!");
+
+      // Generate thumbnails in the background (optional, non-blocking)
+      if (options.length > 0) {
+        console.log('Starting thumbnail generation for', options.length, 'options');
+        setIsGeneratingThumbnails(true);
+        generateStoryThumbnails(options)
+          .then(thumbnailMap => {
+            console.log('Thumbnails generated:', thumbnailMap);
+            setThumbnails(thumbnailMap);
+            setIsGeneratingThumbnails(false);
+          })
+          .catch(error => {
+            console.error('Failed to generate thumbnails:', error);
+            setIsGeneratingThumbnails(false);
+          });
+      }
     } catch (error) {
       console.error("Failed to generate story options:", error);
       toast.error(error instanceof Error ? error.message : "Failed to generate story options");
@@ -69,10 +114,31 @@ const StoryGenerator = () => {
     }
   };
 
-  const selectStory = (storyId: string) => {
+  const selectStory = async (storyId: string) => {
+    if (!chapterId) {
+      toast.error("No chapter found");
+      return;
+    }
+
     setSelectedStory(storyId);
     setStep(3);
-    simulateGeneration();
+    
+    try {
+      // Get the thumbnail URL for the selected story
+      const thumbnailUrl = thumbnails.get(storyId) || undefined;
+      
+      // Save the chosen idea to the database with thumbnail
+      await api.story.chooseIdea(chapterId, storyId, thumbnailUrl);
+      console.log("Idea chosen:", storyId, "with thumbnail:", thumbnailUrl);
+      
+      // Simulate generation progress
+      simulateGeneration();
+    } catch (error) {
+      console.error("Failed to choose idea:", error);
+      toast.error("Failed to save story choice");
+      // Continue with simulation anyway for demo
+      simulateGeneration();
+    }
   };
 
   const simulateGeneration = () => {
@@ -83,8 +149,9 @@ const StoryGenerator = () => {
       if (currentProgress >= 100) {
         clearInterval(interval);
         setTimeout(() => {
-          toast.success("Story generated successfully!");
-          navigate("/teacher/story/1");
+          toast.success("Story chapter created!");
+          // Navigate back to classroom
+          navigate(`/teacher/classroom/${classroomId}`);
         }, 500);
       }
     }, 200);
@@ -107,7 +174,11 @@ const StoryGenerator = () => {
         <div className="space-y-8">
           <div>
             <h1 className="text-4xl font-bold text-foreground mb-2">Generate New Story</h1>
-            <p className="text-muted-foreground">Physics 101 • Grade 10</p>
+            {classroom && (
+              <p className="text-muted-foreground">
+                {classroom.subject} • {classroom.grade_level}
+              </p>
+            )}
           </div>
 
           {step === 1 && (
@@ -154,27 +225,45 @@ const StoryGenerator = () => {
           {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-foreground">Choose Your Story</h2>
+              {isGeneratingThumbnails && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Generating thumbnails... ✨
+                </p>
+              )}
               <div className="grid md:grid-cols-3 gap-6">
-                {storyOptions.map((option) => (
-                  <Card 
-                    key={option.id}
-                    className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02] border-2 hover:border-primary"
-                    onClick={() => selectStory(option.id)}
-                  >
-                    <CardContent className="pt-6 space-y-4">
-                      <div className="text-5xl text-center">{option.theme}</div>
-                      <h3 className="text-xl font-bold text-foreground text-center">
-                        {option.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {option.summary}
-                      </p>
-                      <Button className="w-full">
-                        Select This Story
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                {storyOptions.map((option) => {
+                  const thumbnail = thumbnails.get(option.id);
+                  return (
+                    <Card 
+                      key={option.id}
+                      className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02] border-2 hover:border-primary"
+                      onClick={() => selectStory(option.id)}
+                    >
+                      <CardContent className="pt-6 space-y-4">
+                        {thumbnail ? (
+                          <div className="w-full aspect-square rounded-lg overflow-hidden bg-muted">
+                            <img 
+                              src={thumbnail} 
+                              alt={option.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-5xl text-center">{option.theme}</div>
+                        )}
+                        <h3 className="text-xl font-bold text-foreground text-center">
+                          {option.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {option.summary}
+                        </p>
+                        <Button className="w-full">
+                          Select This Story
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -441,6 +441,41 @@ async def generate_story_options_endpoint(classroom_id: str, lesson_prompt: str)
         raise HTTPException(status_code=500, detail=f"Story generation failed: {str(e)}")
 
 
+@app.post("/story/generate-thumbnail")
+async def generate_thumbnail_endpoint(request: dict):
+    """
+    Generate a thumbnail image for a story option using Flux.
+    This is a temporary image (not stored).
+    
+    Request body:
+        {
+            "title": "Story title",
+            "summary": "Story summary"
+        }
+        
+    Returns:
+        Thumbnail URL
+    """
+    from services.thumbnail import generate_story_thumbnail
+    
+    try:
+        title = request.get("title", "")
+        summary = request.get("summary", "")
+        
+        if not title or not summary:
+            raise HTTPException(status_code=400, detail="Title and summary are required")
+        
+        thumbnail_url = await generate_story_thumbnail(title, summary)
+        return {"success": True, "thumbnail_url": thumbnail_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Thumbnail generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Thumbnail generation failed: {str(e)}")
+
+
 @app.post("/story/create/{classroom_id}")
 async def create_story_endpoint(classroom_id: str):
     """
@@ -624,3 +659,136 @@ async def delete_material_endpoint(material_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete material: {str(e)}")
+
+
+@app.post("/classrooms/{classroom_id}/chapters/start")
+async def start_chapter(classroom_id: str, lesson_prompt: str):
+    """
+    Start a new chapter by generating story options.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        lesson_prompt: Teacher's lesson description
+        
+    Returns:
+        Created chapter with story options
+    """
+    from database.database import get_chapters_by_classroom, supabase
+    from services.story_idea import generate_story_options
+    
+    try:
+        # Get next chapter index
+        existing_chapters = get_chapters_by_classroom(classroom_id)
+        next_index = len(existing_chapters) + 1
+        
+        # Generate story options
+        story_options = await generate_story_options(classroom_id, lesson_prompt)
+        
+        # Create chapter directly with correct schema
+        data = {
+            "classroom_id": classroom_id,
+            "index": next_index,
+            "original_prompt": lesson_prompt,
+            "story_ideas": story_options,
+            "status": "options_generated"
+        }
+        
+        response = supabase.table("chapters").insert(data).execute()
+        chapter = response.data[0] if response.data else None
+        
+        return {
+            "success": True,
+            "chapter": chapter
+        }
+        
+    except Exception as e:
+        print(f"Failed to start chapter: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to start chapter: {str(e)}")
+
+
+@app.post("/chapters/{chapter_id}/choose-idea")
+async def choose_story_idea(chapter_id: str, idea_id: str, thumbnail_url: str = None):
+    """
+    Teacher chooses a story idea for the chapter.
+    Downloads the thumbnail from Flux and uploads it to Supabase storage.
+    
+    Args:
+        chapter_id: UUID of the chapter
+        idea_id: ID of the chosen story idea
+        thumbnail_url: URL of the thumbnail from Flux (optional)
+        
+    Returns:
+        Updated chapter
+    """
+    from database.database import supabase, get_chapter
+    import httpx
+    import uuid
+    
+    try:
+        # Verify chapter exists
+        chapter = get_chapter(chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+        
+        stored_thumbnail_url = None
+        
+        # If thumbnail URL provided, download and upload to Supabase
+        if thumbnail_url:
+            try:
+                print(f"Downloading thumbnail from: {thumbnail_url}")
+                
+                # Download the image from Flux
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(thumbnail_url)
+                    if response.status_code == 200:
+                        image_data = response.content
+                        
+                        # Generate unique filename
+                        filename = f"{chapter_id}/{uuid.uuid4()}.jpeg"
+                        
+                        print(f"Uploading thumbnail to Supabase: {filename}")
+                        
+                        # Upload to Supabase Thumbnails bucket
+                        upload_response = supabase.storage.from_("Thumbnails").upload(
+                            filename,
+                            image_data,
+                            {"content-type": "image/jpeg"}
+                        )
+                        
+                        # Get public URL
+                        stored_thumbnail_url = supabase.storage.from_("Thumbnails").get_public_url(filename)
+                        print(f"✅ Thumbnail uploaded successfully: {stored_thumbnail_url}")
+                    else:
+                        print(f"⚠️ Failed to download thumbnail: {response.status_code}")
+                        
+            except Exception as e:
+                print(f"⚠️ Failed to save thumbnail: {e}")
+                import traceback
+                traceback.print_exc()
+                # Continue even if thumbnail upload fails
+        
+        # Update chapter with chosen idea and thumbnail
+        update_data = {
+            "chosen_idea_id": idea_id,
+            "status": "idea_chosen"
+        }
+        
+        if stored_thumbnail_url:
+            update_data["thumbnail_url"] = stored_thumbnail_url
+        
+        response = supabase.table("chapters").update(update_data).eq("id", chapter_id).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to update chapter")
+        
+        return {"success": True, "chapter": response.data[0]}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Failed to choose idea: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to choose idea: {str(e)}")
