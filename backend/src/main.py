@@ -39,6 +39,91 @@ async def health_check():
         "supabase_configured": bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"))
     }
 
+@app.get("/classrooms")
+async def get_classrooms():
+    """
+    Get all classrooms.
+    
+    Returns:
+        List of all classroom records with student counts
+    """
+    from database.database import get_all_classrooms, get_students_by_classroom, get_chapters_by_classroom
+    
+    try:
+        classrooms = get_all_classrooms()
+        
+        # Add student count and story count to each classroom
+        for classroom in classrooms:
+            students = get_students_by_classroom(classroom["id"])
+            chapters = get_chapters_by_classroom(classroom["id"])
+            classroom["student_count"] = len(students)
+            classroom["story_count"] = len(chapters)
+        
+        return {"success": True, "classrooms": classrooms}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch classrooms: {str(e)}")
+
+@app.get("/classrooms/{classroom_id}")
+async def get_classroom(classroom_id: str):
+    """
+    Get a specific classroom with students.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        
+    Returns:
+        Classroom record with students array
+    """
+    from database.database import get_classroom_with_students
+    
+    try:
+        classroom = get_classroom_with_students(classroom_id)
+        if not classroom:
+            raise HTTPException(status_code=404, detail="Classroom not found")
+        return {"success": True, "classroom": classroom}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch classroom: {str(e)}")
+
+@app.get("/classrooms/{classroom_id}/students")
+async def get_classroom_students(classroom_id: str):
+    """
+    Get all students in a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        
+    Returns:
+        List of student records
+    """
+    from database.database import get_students_by_classroom
+    
+    try:
+        students = get_students_by_classroom(classroom_id)
+        return {"success": True, "students": students}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch students: {str(e)}")
+
+@app.get("/classrooms/{classroom_id}/chapters")
+async def get_classroom_chapters(classroom_id: str):
+    """
+    Get all chapters (stories) for a classroom.
+    
+    Args:
+        classroom_id: UUID of the classroom
+        
+    Returns:
+        List of chapter records
+    """
+    from database.database import get_chapters_by_classroom
+    
+    try:
+        chapters = get_chapters_by_classroom(classroom_id)
+        return {"success": True, "chapters": chapters}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch chapters: {str(e)}")
+
 @app.post("/avatar/create/{student_id}")
 async def create_avatar_endpoint(student_id: str):
     """
