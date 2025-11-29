@@ -1,12 +1,68 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, User } from "lucide-react";
+import { ChevronLeft, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockStudents } from "@/lib/mockData";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
+
+interface Student {
+    id: string;
+    name: string;
+    interests: string;
+    avatar_url: string | null;
+    photo_url: string | null;
+    created_at: string;
+}
 
 const StudentLogin = () => {
     const navigate = useNavigate();
+    const [students, setStudents] = useState<Student[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        fetchAllStudents();
+    }, []);
+
+    const fetchAllStudents = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch all classrooms and their students
+            const classroomsResponse = await api.classrooms.getAll();
+            const allStudents: Student[] = [];
+            const studentIds = new Set<string>();
+
+            // Get students from each classroom
+            for (const classroom of classroomsResponse.classrooms) {
+                try {
+                    const studentsResponse = await api.classrooms.getStudents(classroom.id);
+                    studentsResponse.students.forEach(student => {
+                        // Avoid duplicates (students can be in multiple classrooms)
+                        if (!studentIds.has(student.id)) {
+                            studentIds.add(student.id);
+                            allStudents.push(student);
+                        }
+                    });
+                } catch (error) {
+                    console.error(`Failed to fetch students for classroom ${classroom.id}:`, error);
+                }
+            }
+
+            setStudents(allStudents);
+        } catch (error) {
+            console.error("Failed to fetch students:", error);
+            toast.error("Failed to load students. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleStudentClick = (studentId: string) => {
+        // Store student ID in localStorage for session persistence
+        localStorage.setItem('studentId', studentId);
+        navigate(`/student/dashboard/${studentId}`);
+    };
 
     return (
         <div className="min-h-screen bg-muted/20">
@@ -31,28 +87,50 @@ const StudentLogin = () => {
                         </div>
 
                         <div className="space-y-3">
-                            {mockStudents.map((student) => (
-                                <Card
-                                    key={student.id}
-                                    className="cursor-pointer hover:bg-accent transition-all hover:shadow-lg border-2"
-                                    onClick={() => navigate(`/student/dashboard/${student.id}`)}
-                                >
-                                    <CardContent className="pt-4 pb-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                                                    <User className="w-6 h-6 text-primary" />
+                            {isLoading ? (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                                    <p className="text-muted-foreground">Loading students...</p>
+                                </div>
+                            ) : students.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <p className="text-muted-foreground mb-4">No students found</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Create a new account to get started
+                                    </p>
+                                </div>
+                            ) : (
+                                students.map((student) => (
+                                    <Card
+                                        key={student.id}
+                                        className="cursor-pointer hover:bg-accent transition-all hover:shadow-lg border-2"
+                                        onClick={() => handleStudentClick(student.id)}
+                                    >
+                                        <CardContent className="pt-4 pb-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    {student.avatar_url || student.photo_url ? (
+                                                        <img
+                                                            src={student.avatar_url || student.photo_url || ''}
+                                                            alt={student.name}
+                                                            className="w-12 h-12 rounded-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                                                            <User className="w-6 h-6 text-primary" />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <h3 className="font-semibold text-foreground">{student.name}</h3>
+                                                        <p className="text-sm text-muted-foreground">{student.interests}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-semibold text-foreground">{student.name}</h3>
-                                                    <p className="text-sm text-muted-foreground">{student.interests}</p>
-                                                </div>
+                                                <Badge variant="outline">Student</Badge>
                                             </div>
-                                            <Badge variant="outline">Student</Badge>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
                         </div>
 
                         <div className="pt-4 border-t border-border/30 text-center">

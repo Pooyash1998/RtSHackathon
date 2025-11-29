@@ -142,7 +142,6 @@ export const api = {
         success: boolean;
         student: {
           id: string;
-          classroom_id: string | null;
           name: string;
           interests: string;
           photo_url: string | null;
@@ -156,9 +155,9 @@ export const api = {
     joinClassroom: (studentId: string, classroomId: string) =>
       apiFetch<{
         success: boolean;
+        message: string;
         student: {
           id: string;
-          classroom_id: string;
           name: string;
           interests: string;
           photo_url: string | null;
@@ -181,7 +180,6 @@ export const api = {
         success: boolean;
         student: {
           id: string;
-          classroom_id: string | null;
           name: string;
           interests: string;
           photo_url: string | null;

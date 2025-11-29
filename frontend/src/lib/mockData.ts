@@ -5,7 +5,6 @@ import { Story, Panel } from '@/types/story';
 export const mockStudents: Student[] = [
   {
     id: "student-1",
-    classroom_id: "class-1",
     name: "Emma Johnson",
     interests: "Space, Robots",
     avatar_url: null,
@@ -14,7 +13,6 @@ export const mockStudents: Student[] = [
   },
   {
     id: "student-2",
-    classroom_id: "class-1",
     name: "Liam Chen",
     interests: "Sports, Adventure",
     avatar_url: null,
@@ -23,7 +21,6 @@ export const mockStudents: Student[] = [
   },
   {
     id: "student-3",
-    classroom_id: "class-1",
     name: "Sophia Martinez",
     interests: "Mystery, Books",
     avatar_url: null,
@@ -99,14 +96,24 @@ export const getClassroomById = (id: string): Classroom | undefined =>
 export const getStoryById = (id: string): Story | undefined =>
   mockStories.find(s => s.id === id);
 
-export const getClassroomsByStudentId = (studentId: string): Classroom[] => {
-  const student = getStudentById(studentId);
-  if (!student) return [];
-  return mockClassrooms.filter(c => c.id === student.classroom_id);
+// Mock many-to-many relationships (student_id -> classroom_ids)
+const mockStudentClassrooms: Record<string, string[]> = {
+  "student-1": ["class-1"],
+  "student-2": ["class-1"],
+  "student-3": ["class-1"]
 };
 
-export const getStudentsByClassroomId = (classroomId: string): Student[] =>
-  mockStudents.filter(s => s.classroom_id === classroomId);
+export const getClassroomsByStudentId = (studentId: string): Classroom[] => {
+  const classroomIds = mockStudentClassrooms[studentId] || [];
+  return mockClassrooms.filter(c => classroomIds.includes(c.id));
+};
+
+export const getStudentsByClassroomId = (classroomId: string): Student[] => {
+  const studentIds = Object.entries(mockStudentClassrooms)
+    .filter(([_, classrooms]) => classrooms.includes(classroomId))
+    .map(([studentId]) => studentId);
+  return mockStudents.filter(s => studentIds.includes(s.id));
+};
 
 export const getStoriesByClassroomId = (classroomId: string): Story[] =>
   mockStories.filter(s => s.classroom_id === classroomId);
