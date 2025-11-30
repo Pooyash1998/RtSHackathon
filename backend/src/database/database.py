@@ -29,10 +29,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 def get_classroom(classroom_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a classroom by ID.
-    
+
     Args:
         classroom_id: UUID of the classroom
-    
+
     Returns:
         Classroom record or None if not found
     """
@@ -43,11 +43,16 @@ def get_classroom(classroom_id: str) -> Optional[Dict[str, Any]]:
 def get_all_classrooms() -> List[Dict[str, Any]]:
     """
     Get all classrooms.
-    
+
     Returns:
         List of all classroom records
     """
-    response = supabase.table("classrooms").select("*").order("created_at", desc=True).execute()
+    response = (
+        supabase.table("classrooms")
+        .select("*")
+        .order("created_at", desc=True)
+        .execute()
+    )
     return response.data
 
 
@@ -59,10 +64,10 @@ def get_all_classrooms() -> List[Dict[str, Any]]:
 def get_student(student_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a student by ID.
-    
+
     Args:
         student_id: UUID of the student
-    
+
     Returns:
         Student record or None if not found
     """
@@ -73,31 +78,36 @@ def get_student(student_id: str) -> Optional[Dict[str, Any]]:
 def get_students_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
     """
     Get all students in a classroom (using many-to-many relationship) (using many-to-many relationship).
-    
+
     Args:
         classroom_id: UUID of the classroom
-    
+
     Returns:
         List of student records
     """
     # Query through junction table
-    response = supabase.table("student_classrooms").select(
-        "students(*)"
-    ).eq("classroom_id", classroom_id).execute()
-    
+    response = (
+        supabase.table("student_classrooms")
+        .select("students(*)")
+        .eq("classroom_id", classroom_id)
+        .execute()
+    )
+
     # Extract student data from nested structure
     students = [item["students"] for item in response.data if item.get("students")]
     return students
 
 
-def update_student(student_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def update_student(
+    student_id: str, updates: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """
     Update a student record.
-    
+
     Args:
         student_id: UUID of the student
         updates: Dictionary of fields to update
-    
+
     Returns:
         Updated student record or None if not found
     """
@@ -109,23 +119,24 @@ def update_student(student_id: str, updates: Dict[str, Any]) -> Optional[Dict[st
 # CHAPTER FUNCTIONS
 # ============================================
 
+
 def create_chapter(
     classroom_id: str,
     index: int,
     original_prompt: str,
     story_ideas: Optional[List[Dict[str, Any]]] = None,
-    status: str = "draft"
+    status: str = "draft",
 ) -> Dict[str, Any]:
     """
     Create a new chapter in a classroom story.
-    
+
     Args:
         classroom_id: UUID of the classroom
         index: Chapter number (starting from 1)
         original_prompt: Teacher's original prompt/outline for the chapter
         story_ideas: Optional list of AI-generated story ideas
         status: Chapter status (draft, awaiting_choice, generating, ready)
-    
+
     Returns:
         Created chapter record
     """
@@ -133,12 +144,12 @@ def create_chapter(
         "classroom_id": classroom_id,
         "index": index,
         "original_prompt": original_prompt,
-        "status": status
+        "status": status,
     }
-    
+
     if story_ideas is not None:
         data["story_ideas"] = story_ideas
-    
+
     response = supabase.table("chapters").insert(data).execute()
     return response.data[0] if response.data else None
 
@@ -146,10 +157,10 @@ def create_chapter(
 def get_chapter(chapter_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a chapter by ID.
-    
+
     Args:
         chapter_id: UUID of the chapter
-    
+
     Returns:
         Chapter record or None if not found
     """
@@ -158,16 +169,15 @@ def get_chapter(chapter_id: str) -> Optional[Dict[str, Any]]:
 
 
 def update_chapter(
-    chapter_id: str,
-    updates: Dict[str, Any]
+    chapter_id: str, updates: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """
     Update a chapter record.
-    
+
     Args:
         chapter_id: UUID of the chapter
         updates: Dictionary of fields to update (story_ideas, chosen_idea_id, story_script, status, etc.)
-    
+
     Returns:
         Updated chapter record or None if not found
     """
@@ -178,43 +188,75 @@ def update_chapter(
 def get_chapters_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
     """
     Get all chapters for a classroom, ordered by index.
-    
+
     Args:
         classroom_id: UUID of the classroom
-    
+
     Returns:
         List of chapter records ordered by index
     """
-    response = supabase.table("chapters").select("*").eq("classroom_id", classroom_id).order("index").execute()
-    return response.data
+    response = (
+        supabase.table("chapters")
+        .select("*")
+        .eq("classroom_id", classroom_id)
+        .order("index")
+        .execute()
+    )
+    chapters = response.data
+
+    # Add chosen story title to each chapter
+    for chapter in chapters:
+        _add_story_title(chapter)
+
+    return chapters
+
+
+def _add_story_title(chapter: Dict[str, Any]) -> None:
+    """
+    Helper to add the chosen story title to a chapter dict (in-place).
+    Extracts the title from story_ideas based on chosen_idea_id.
+
+    Args:
+        chapter: Chapter dict to modify
+    """
+    if not chapter:
+        return
+
+    story_ideas = chapter.get("story_ideas", [])
+    chosen_idea_id = chapter.get("chosen_idea_id")
+
+    if story_ideas and chosen_idea_id:
+        # Find the chosen idea
+        for idea in story_ideas:
+            if idea.get("id") == chosen_idea_id:
+                chapter["story_title"] = idea.get(
+                    "title", f"Chapter {chapter.get('index', '')}"
+                )
+                return
+
+    # Fallback if no title found
+    chapter["story_title"] = f"Chapter {chapter.get('index', '')}"
 
 
 # ============================================
 # PANEL FUNCTIONS
 # ============================================
 
-def create_panel(
-    chapter_id: str,
-    index: int,
-    image: str
-) -> Dict[str, Any]:
+
+def create_panel(chapter_id: str, index: int, image: str) -> Dict[str, Any]:
     """
     Create a new panel in a chapter.
-    
+
     Args:
         chapter_id: UUID of the chapter
         index: Panel number within the chapter (starting from 1)
         image: URL of the panel image
-    
+
     Returns:
         Created panel record
     """
-    data = {
-        "chapter_id": chapter_id,
-        "index": index,
-        "image": image
-    }
-    
+    data = {"chapter_id": chapter_id, "index": index, "image": image}
+
     response = supabase.table("panels").insert(data).execute()
     return response.data[0] if response.data else None
 
@@ -222,10 +264,10 @@ def create_panel(
 def get_panel(panel_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a panel by ID.
-    
+
     Args:
         panel_id: UUID of the panel
-    
+
     Returns:
         Panel record or None if not found
     """
@@ -236,14 +278,20 @@ def get_panel(panel_id: str) -> Optional[Dict[str, Any]]:
 def get_panels_by_chapter(chapter_id: str) -> List[Dict[str, Any]]:
     """
     Get all panels for a chapter, ordered by index.
-    
+
     Args:
         chapter_id: UUID of the chapter
-    
+
     Returns:
         List of panel records ordered by index
     """
-    response = supabase.table("panels").select("*").eq("chapter_id", chapter_id).order("index").execute()
+    response = (
+        supabase.table("panels")
+        .select("*")
+        .eq("chapter_id", chapter_id)
+        .order("index")
+        .execute()
+    )
     return response.data
 
 
@@ -251,22 +299,20 @@ def get_panels_by_chapter(chapter_id: str) -> List[Dict[str, Any]]:
 # STUDENT-CLASSROOM RELATIONSHIP FUNCTIONS
 # ============================================
 
+
 def add_student_to_classroom(student_id: str, classroom_id: str) -> Dict[str, Any]:
     """
     Add a student to a classroom (many-to-many).
-    
+
     Args:
         student_id: UUID of the student
         classroom_id: UUID of the classroom
-    
+
     Returns:
         Created relationship record
     """
-    data = {
-        "student_id": student_id,
-        "classroom_id": classroom_id
-    }
-    
+    data = {"student_id": student_id, "classroom_id": classroom_id}
+
     response = supabase.table("student_classrooms").insert(data).execute()
     return response.data[0] if response.data else None
 
@@ -274,53 +320,66 @@ def add_student_to_classroom(student_id: str, classroom_id: str) -> Dict[str, An
 def remove_student_from_classroom(student_id: str, classroom_id: str) -> bool:
     """
     Remove a student from a classroom.
-    
+
     Args:
         student_id: UUID of the student
         classroom_id: UUID of the classroom
-    
+
     Returns:
         True if successful
     """
-    response = supabase.table("student_classrooms").delete().eq(
-        "student_id", student_id
-    ).eq("classroom_id", classroom_id).execute()
+    response = (
+        supabase.table("student_classrooms")
+        .delete()
+        .eq("student_id", student_id)
+        .eq("classroom_id", classroom_id)
+        .execute()
+    )
     return len(response.data) > 0
 
 
 def get_classrooms_by_student(student_id: str) -> List[Dict[str, Any]]:
     """
     Get all classrooms a student is enrolled in.
-    
+
     Args:
         student_id: UUID of the student
-    
+
     Returns:
         List of classroom records
     """
-    response = supabase.table("student_classrooms").select(
-        "classrooms(*)"
-    ).eq("student_id", student_id).execute()
-    
+    response = (
+        supabase.table("student_classrooms")
+        .select("classrooms(*)")
+        .eq("student_id", student_id)
+        .execute()
+    )
+
     # Extract classroom data from nested structure
-    classrooms = [item["classrooms"] for item in response.data if item.get("classrooms")]
+    classrooms = [
+        item["classrooms"] for item in response.data if item.get("classrooms")
+    ]
     return classrooms
 
 
 def is_student_in_classroom(student_id: str, classroom_id: str) -> bool:
     """
     Check if a student is enrolled in a classroom.
-    
+
     Args:
         student_id: UUID of the student
         classroom_id: UUID of the classroom
-    
+
     Returns:
         True if student is in classroom
     """
-    response = supabase.table("student_classrooms").select("id").eq(
-        "student_id", student_id
-    ).eq("classroom_id", classroom_id).execute()
+    response = (
+        supabase.table("student_classrooms")
+        .select("id")
+        .eq("student_id", student_id)
+        .eq("classroom_id", classroom_id)
+        .execute()
+    )
     return len(response.data) > 0
 
 
@@ -328,22 +387,20 @@ def is_student_in_classroom(student_id: str, classroom_id: str) -> bool:
 # STUDENT-CLASSROOM RELATIONSHIP FUNCTIONS
 # ============================================
 
+
 def add_student_to_classroom(student_id: str, classroom_id: str) -> Dict[str, Any]:
     """
     Add a student to a classroom (many-to-many).
-    
+
     Args:
         student_id: UUID of the student
         classroom_id: UUID of the classroom
-    
+
     Returns:
         Created relationship record
     """
-    data = {
-        "student_id": student_id,
-        "classroom_id": classroom_id
-    }
-    
+    data = {"student_id": student_id, "classroom_id": classroom_id}
+
     response = supabase.table("student_classrooms").insert(data).execute()
     return response.data[0] if response.data else None
 
@@ -351,53 +408,66 @@ def add_student_to_classroom(student_id: str, classroom_id: str) -> Dict[str, An
 def remove_student_from_classroom(student_id: str, classroom_id: str) -> bool:
     """
     Remove a student from a classroom.
-    
+
     Args:
         student_id: UUID of the student
         classroom_id: UUID of the classroom
-    
+
     Returns:
         True if successful
     """
-    response = supabase.table("student_classrooms").delete().eq(
-        "student_id", student_id
-    ).eq("classroom_id", classroom_id).execute()
+    response = (
+        supabase.table("student_classrooms")
+        .delete()
+        .eq("student_id", student_id)
+        .eq("classroom_id", classroom_id)
+        .execute()
+    )
     return len(response.data) > 0
 
 
 def get_classrooms_by_student(student_id: str) -> List[Dict[str, Any]]:
     """
     Get all classrooms a student is enrolled in.
-    
+
     Args:
         student_id: UUID of the student
-    
+
     Returns:
         List of classroom records
     """
-    response = supabase.table("student_classrooms").select(
-        "classrooms(*)"
-    ).eq("student_id", student_id).execute()
-    
+    response = (
+        supabase.table("student_classrooms")
+        .select("classrooms(*)")
+        .eq("student_id", student_id)
+        .execute()
+    )
+
     # Extract classroom data from nested structure
-    classrooms = [item["classrooms"] for item in response.data if item.get("classrooms")]
+    classrooms = [
+        item["classrooms"] for item in response.data if item.get("classrooms")
+    ]
     return classrooms
 
 
 def is_student_in_classroom(student_id: str, classroom_id: str) -> bool:
     """
     Check if a student is enrolled in a classroom.
-    
+
     Args:
         student_id: UUID of the student
         classroom_id: UUID of the classroom
-    
+
     Returns:
         True if student is in classroom
     """
-    response = supabase.table("student_classrooms").select("id").eq(
-        "student_id", student_id
-    ).eq("classroom_id", classroom_id).execute()
+    response = (
+        supabase.table("student_classrooms")
+        .select("id")
+        .eq("student_id", student_id)
+        .eq("classroom_id", classroom_id)
+        .execute()
+    )
     return len(response.data) > 0
 
 
@@ -405,13 +475,14 @@ def is_student_in_classroom(student_id: str, classroom_id: str) -> bool:
 # UTILITY FUNCTIONS
 # ============================================
 
+
 def delete_classroom(classroom_id: str) -> bool:
     """
     Delete a classroom (cascades to students, chapters, and panels).
-    
+
     Args:
         classroom_id: UUID of the classroom
-    
+
     Returns:
         True if successful
     """
@@ -422,10 +493,10 @@ def delete_classroom(classroom_id: str) -> bool:
 def delete_student(student_id: str) -> bool:
     """
     Delete a student.
-    
+
     Args:
         student_id: UUID of the student
-    
+
     Returns:
         True if successful
     """
@@ -436,10 +507,10 @@ def delete_student(student_id: str) -> bool:
 def delete_chapter(chapter_id: str) -> bool:
     """
     Delete a chapter (cascades to panels).
-    
+
     Args:
         chapter_id: UUID of the chapter
-    
+
     Returns:
         True if successful
     """
@@ -450,27 +521,29 @@ def delete_chapter(chapter_id: str) -> bool:
 def delete_panel(panel_id: str) -> bool:
     """
     Delete a panel.
-    
+
     Args:
         panel_id: UUID of the panel
-    
+
     Returns:
         True if successful
     """
     response = supabase.table("panels").delete().eq("id", panel_id).execute()
     return len(response.data) > 0
 
+
 # ============================================
 # ADVANCED QUERY FUNCTIONS
 # ============================================
 
+
 def get_classroom_with_students(classroom_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a classroom with all its students.
-    
+
     Args:
         classroom_id: UUID of the classroom
-    
+
     Returns:
         Classroom record with nested students array
     """
@@ -483,41 +556,42 @@ def get_classroom_with_students(classroom_id: str) -> Optional[Dict[str, Any]]:
 def get_chapter_with_panels(chapter_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a chapter with all its panels.
-    
+
     Args:
         chapter_id: UUID of the chapter
-    
+
     Returns:
-        Chapter record with nested panels array
+        Chapter record with nested panels array and story_title
     """
     chapter = get_chapter(chapter_id)
     if chapter:
         chapter["panels"] = get_panels_by_chapter(chapter_id)
+        _add_story_title(chapter)
     return chapter
 
 
 def get_classroom_full_story(classroom_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a classroom with all chapters and their panels.
-    
+
     Args:
         classroom_id: UUID of the classroom
-    
+
     Returns:
         Classroom record with nested chapters (each with panels) and students
     """
     classroom = get_classroom(classroom_id)
     if not classroom:
         return None
-    
+
     # Get students
     classroom["students"] = get_students_by_classroom(classroom_id)
-    
+
     # Get chapters with panels
     chapters = get_chapters_by_classroom(classroom_id)
     for chapter in chapters:
         chapter["panels"] = get_panels_by_chapter(chapter["id"])
-    
+
     classroom["chapters"] = chapters
     return classroom
 
@@ -526,17 +600,18 @@ def get_classroom_full_story(classroom_id: str) -> Optional[Dict[str, Any]]:
 # MATERIAL FUNCTIONS
 # ============================================
 
+
 def create_material(
     classroom_id: str,
     title: str,
     file_url: str,
     file_type: str,
     description: Optional[str] = None,
-    week_number: Optional[int] = None
+    week_number: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Create a new material for a classroom.
-    
+
     Args:
         classroom_id: UUID of the classroom
         title: Title of the material
@@ -544,7 +619,7 @@ def create_material(
         file_type: Type of file (e.g., 'application/pdf')
         description: Optional description
         week_number: Optional week number
-    
+
     Returns:
         Created material record
     """
@@ -554,9 +629,9 @@ def create_material(
         "file_url": file_url,
         "file_type": file_type,
         "description": description,
-        "week_number": week_number
+        "week_number": week_number,
     }
-    
+
     response = supabase.table("materials").insert(data).execute()
     return response.data[0] if response.data else None
 
@@ -564,26 +639,30 @@ def create_material(
 def get_materials_by_classroom(classroom_id: str) -> List[Dict[str, Any]]:
     """
     Get all materials for a classroom, ordered by creation date.
-    
+
     Args:
         classroom_id: UUID of the classroom
-    
+
     Returns:
         List of material records ordered by created_at (newest first)
     """
-    response = supabase.table("materials").select("*").eq(
-        "classroom_id", classroom_id
-    ).order("created_at", desc=True).execute()
+    response = (
+        supabase.table("materials")
+        .select("*")
+        .eq("classroom_id", classroom_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
     return response.data
 
 
 def get_material(material_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a material by ID.
-    
+
     Args:
         material_id: UUID of the material
-    
+
     Returns:
         Material record or None if not found
     """
@@ -594,10 +673,10 @@ def get_material(material_id: str) -> Optional[Dict[str, Any]]:
 def delete_material(material_id: str) -> bool:
     """
     Delete a material.
-    
+
     Args:
         material_id: UUID of the material
-    
+
     Returns:
         True if successful
     """
