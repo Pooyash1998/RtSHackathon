@@ -235,6 +235,65 @@ const ClassroomDetail = () => {
     return Math.ceil((((date.getTime() - onejan.getTime()) / millisecsInDay) + onejan.getDay() + 1) / 7);
   };
 
+  // Export chapter as PDF
+  const handleExportPDF = async (chapterId: string, chapterTitle: string) => {
+    try {
+      toast.info("Generating PDF...");
+
+      // Fetch chapter with panels
+      const response = await api.chapters.getById(chapterId);
+      const panels = response.chapter.panels || [];
+
+      if (panels.length === 0) {
+        toast.error("No panels to export");
+        return;
+      }
+
+      // Dynamically import jsPDF
+      const { jsPDF } = await import('jspdf');
+
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableWidth = pageWidth - (2 * margin);
+      const usableHeight = pageHeight - (2 * margin);
+      const panelsPerPage = 2;
+
+      // Sort panels by index
+      const sortedPanels = [...panels].sort((a, b) => a.index - b.index);
+
+      for (let i = 0; i < sortedPanels.length; i++) {
+        const panel = sortedPanels[i];
+
+        if (i > 0 && i % panelsPerPage === 0) {
+          doc.addPage();
+        }
+
+        const indexOnPage = i % panelsPerPage;
+        const y = margin + (indexOnPage * (usableHeight / panelsPerPage));
+        const imgHeight = usableHeight / panelsPerPage - 5;
+
+        try {
+          doc.addImage(panel.image, 'PNG', margin, y, usableWidth, imgHeight);
+        } catch (err) {
+          console.error(`Failed to add panel ${panel.index}:`, err);
+        }
+      }
+
+      doc.save(`${chapterTitle}.pdf`);
+      toast.success("PDF downloaded successfully!");
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      toast.error("Failed to generate PDF. Please try again.");
+    }
+  };
+
   // Group chapters by week or keep sorted by date
   const groupedChapters = () => {
     if (storySortBy === "date") {
@@ -612,7 +671,13 @@ const ClassroomDetail = () => {
                                       <Button asChild variant="default" className="backdrop-blur-sm">
                                         <a href={`/teacher/story/${chapter.id}`}>View Chapter</a>
                                       </Button>
-                                      <Button variant="outline" className="backdrop-blur-sm bg-background/60">Export PDF</Button>
+                                      <Button
+                                        variant="outline"
+                                        className="backdrop-blur-sm bg-background/60"
+                                        onClick={() => handleExportPDF(chapter.id, chapter.story_title || `Chapter ${chapter.index}`)}
+                                      >
+                                        Export PDF
+                                      </Button>
                                     </div>
                                   </div>
                                 </div>
@@ -636,8 +701,8 @@ const ClassroomDetail = () => {
                   {/* Upload Area */}
                   <div
                     className={`backdrop-blur-lg bg-card/50 border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${isDragging
-                        ? 'border-primary bg-primary/10 scale-[1.02]'
-                        : 'border-muted-foreground/25 hover:border-primary/50'
+                      ? 'border-primary bg-primary/10 scale-[1.02]'
+                      : 'border-muted-foreground/25 hover:border-primary/50'
                       }`}
                     onDragEnter={handleDragEnter}
                     onDragOver={handleDragOver}

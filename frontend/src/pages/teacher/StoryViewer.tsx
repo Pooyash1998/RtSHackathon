@@ -58,8 +58,78 @@ const StoryViewer = () => {
     loadChapter();
   }, [id]);
 
-  const handleExport = () => {
-    toast.success("PDF export started! Your download will begin shortly.");
+  const handleExport = async () => {
+    if (!chapter || panels.length === 0) {
+      toast.error("No panels to export");
+      return;
+    }
+
+    try {
+      toast.info("Generating PDF...");
+
+      // Dynamically import jsPDF
+      const { jsPDF } = await import('jspdf');
+
+      const doc = new jsPDF({
+        orientation: exportSettings.pageSize === 'letter' ? 'portrait' : 'portrait',
+        unit: 'mm',
+        format: exportSettings.pageSize === 'letter' ? 'letter' : 'a4'
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const panelsPerPage = parseInt(exportSettings.layout);
+      const margin = 10;
+      const usableWidth = pageWidth - (2 * margin);
+      const usableHeight = pageHeight - (2 * margin);
+
+      // Sort panels by index
+      const sortedPanels = [...panels].sort((a, b) => a.index - b.index);
+
+      for (let i = 0; i < sortedPanels.length; i++) {
+        const panel = sortedPanels[i];
+
+        // Add new page if not first panel
+        if (i > 0 && i % panelsPerPage === 0) {
+          doc.addPage();
+        }
+
+        // Calculate position based on layout
+        const indexOnPage = i % panelsPerPage;
+        let x = margin;
+        let y = margin;
+        let imgWidth = usableWidth;
+        let imgHeight = usableHeight / panelsPerPage - 5;
+
+        if (panelsPerPage === 2) {
+          y = margin + (indexOnPage * (usableHeight / 2));
+          imgHeight = usableHeight / 2 - 5;
+        } else if (panelsPerPage === 4) {
+          const row = Math.floor(indexOnPage / 2);
+          const col = indexOnPage % 2;
+          x = margin + (col * (usableWidth / 2));
+          y = margin + (row * (usableHeight / 2));
+          imgWidth = usableWidth / 2 - 5;
+          imgHeight = usableHeight / 2 - 5;
+        }
+
+        try {
+          // Add image to PDF
+          doc.addImage(panel.image, 'PNG', x, y, imgWidth, imgHeight);
+        } catch (err) {
+          console.error(`Failed to add panel ${panel.index}:`, err);
+        }
+      }
+
+      // Save PDF
+      const fileName = `${chapter.story_title || `Chapter ${chapter.index}`}.pdf`;
+      doc.save(fileName);
+
+      toast.success("PDF downloaded successfully!");
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      toast.error("Failed to generate PDF. Please try again.");
+    }
   };
 
   if (isLoading) {
