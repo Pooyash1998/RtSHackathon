@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { generateStoryThumbnails } from "@/services/thumbnailGenerator";
+import ClassicLoader from "@/components/ui/loader";
 
 interface StoryOption {
   id: string;
@@ -294,14 +295,11 @@ const StoryGenerator = () => {
           {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-foreground">Choose Your Story</h2>
-              {isGeneratingThumbnails && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Generating thumbnails... ✨
-                </p>
-              )}
               <div className="grid md:grid-cols-3 gap-6">
                 {storyOptions.map((option) => {
                   const thumbnail = thumbnails.get(option.id);
+                  const isLoading = isGeneratingThumbnails && !thumbnail;
+                  
                   return (
                     <Card
                       key={option.id}
@@ -309,23 +307,32 @@ const StoryGenerator = () => {
                       onClick={() => selectStory(option.id)}
                     >
                       <CardContent className="pt-6 space-y-4">
-                        {thumbnail ? (
-                          <div className="w-full aspect-square rounded-lg overflow-hidden bg-muted">
+                        {/* Thumbnail or Loading Placeholder */}
+                        <div className="w-full aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                          {thumbnail ? (
                             <img
                               src={thumbnail}
                               alt={option.title}
                               className="w-full h-full object-cover"
                             />
-                          </div>
-                        ) : (
-                          <div className="text-5xl text-center">{option.theme}</div>
-                        )}
-                        <h3 className="text-xl font-bold text-foreground text-center">
+                          ) : isLoading ? (
+                            <ClassicLoader />
+                          ) : (
+                            <span className="text-5xl">{option.theme}</span>
+                          )}
+                        </div>
+                        
+                        {/* Title */}
+                        <h3 className="text-lg font-bold text-foreground text-center line-clamp-2 min-h-[3.5rem]">
                           {option.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
+                        
+                        {/* Summary */}
+                        <p className="text-sm text-muted-foreground line-clamp-3 min-h-[4rem]">
                           {option.summary}
                         </p>
+                        
+                        {/* Select Button */}
                         <Button className="w-full">
                           Select This Story
                         </Button>
