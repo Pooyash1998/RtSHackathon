@@ -636,10 +636,10 @@ const ClassroomDetail = () => {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, delay: (groupIdx * 0.1) + (idx * 0.05) }}
                       >
-                        <Card className="backdrop-blur-lg bg-card/70 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl">
-                          <CardContent className="pt-6">
-                            <div className="flex flex-col md:flex-row gap-4">
-                              <div className="w-full md:w-32 h-32 bg-muted/50 backdrop-blur-sm rounded-lg flex items-center justify-center border border-border/30 overflow-hidden">
+                        <Card className="backdrop-blur-lg bg-card/70 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl h-full">
+                          <CardContent className="pt-6 h-full">
+                            <div className="flex flex-col md:flex-row gap-4 h-full">
+                              <div className="w-full md:w-32 h-32 md:h-auto bg-muted/50 backdrop-blur-sm rounded-lg flex items-center justify-center border border-border/30 overflow-hidden flex-shrink-0">
                                 {chapter.thumbnail_url ? (
                                   <img
                                     src={chapter.thumbnail_url}
@@ -650,20 +650,22 @@ const ClassroomDetail = () => {
                                   <span className="text-4xl">📚</span>
                                 )}
                               </div>
-                              <div className="flex-1 space-y-3">
-                                <div>
-                                  <h3 className="text-xl font-bold text-foreground">{chapter.story_title || `Chapter ${chapter.index}`}</h3>
-                                  <p className="text-sm text-muted-foreground line-clamp-2">
+                              <div className="flex-1 flex flex-col justify-between space-y-3 min-h-[180px]">
+                                <div className="flex-1">
+                                  <h3 className="text-xl font-bold text-foreground line-clamp-1">{chapter.story_title || `Chapter ${chapter.index}`}</h3>
+                                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                                     {chapter.chapter_outline || chapter.original_prompt}
                                   </p>
-                                  <p className="text-xs text-muted-foreground mt-1">
+                                  <p className="text-xs text-muted-foreground mt-2">
                                     Created on {new Date(chapter.created_at).toLocaleDateString()}
                                   </p>
+                                  <div className="mt-2">
+                                    <Badge className="bg-green-500/80 text-white backdrop-blur-sm border-green-300/30">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Completed
+                                    </Badge>
+                                  </div>
                                 </div>
-                                <Badge className="bg-green-500/80 text-white backdrop-blur-sm border-green-300/30">
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Completed
-                                </Badge>
                                 <div className="flex gap-2 flex-wrap">
                                   <Button asChild variant="default" className="backdrop-blur-sm">
                                     <a href={`/teacher/story/${chapter.id}`}>View Chapter</a>

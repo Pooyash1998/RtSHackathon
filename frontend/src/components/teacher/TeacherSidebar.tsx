@@ -68,7 +68,7 @@ export function TeacherSidebar({ open, setOpen }: TeacherSidebarProps) {
           {/* Back to Dashboard - Only show on classroom/story pages */}
           {(isClassroomPage || isStoryPage) && (
             <>
-              <div className="mt-4">
+              <div className="mt-8">
                 <Link 
                   to="/teacher/dashboard"
                   className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent transition-colors text-sm text-muted-foreground hover:text-foreground"
@@ -102,14 +102,7 @@ export function TeacherSidebar({ open, setOpen }: TeacherSidebarProps) {
           )}
 
           {/* Main Navigation */}
-          <div className="space-y-2">
-            {open && !isClassroomPage && (
-              <div className="px-2 mb-2">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Main
-                </h3>
-              </div>
-            )}
+          <div className={`space-y-2 ${!isClassroomPage && !isStoryPage ? 'mt-8' : ''}`}>
             {mainLinks.map((link, idx) => (
               <SidebarLink key={idx} link={link} />
             ))}
