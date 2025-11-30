@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 import os
 from services.avatar import generate_avatar
 from services.comic_creation import commit_story_choice
+from services.story_idea import start_chapter
 
 # Load environment variables
 load_dotenv()

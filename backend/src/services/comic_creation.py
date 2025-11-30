@@ -58,7 +58,7 @@ SUPABASE_IMAGES_BUCKET = os.getenv("SUPABASE_IMAGES_BUCKET")
 
 # NEW: panel review configuration
 PANEL_REVIEW_ENABLED = os.getenv("PANEL_REVIEW_ENABLED", "true").lower() == "true"
-PANEL_REVIEW_MIN_SCORE = float(os.getenv("PANEL_REVIEW_MIN_SCORE", "8.0"))
+PANEL_REVIEW_MIN_SCORE = float(os.getenv("PANEL_REVIEW_MIN_SCORE", "9.0"))
 PANEL_REVIEW_MAX_ATTEMPTS = int(os.getenv("PANEL_REVIEW_MAX_ATTEMPTS", "3"))
 
 if not OPENAI_API_KEY or OPENAI_API_KEY == "YOUR_OPENAI_API_KEY_HERE":
@@ -266,14 +266,18 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
         current_prompt = base_prompt
 
         for attempt in range(1, PANEL_REVIEW_MAX_ATTEMPTS + 1):
-            print(f"      - Attempt {attempt}/{PANEL_REVIEW_MAX_ATTEMPTS}")
+            print(f"\n      🎯 Attempt {attempt}/{PANEL_REVIEW_MAX_ATTEMPTS}")
+            print(f"      → Generating image with FLUX...")
             image_bytes, source_url = call_flux_and_download(
                 current_prompt,
                 aspect_ratio=aspect_ratio,
                 reference_images=reference_images,
             )
 
+            print(f"      ✓ Image generated ({len(image_bytes)} bytes)")
+            
             # Run multimodal review against the *BFL sample URL*
+            print(f"      → Running quality review...")
             try:
                 review = review_panel_image(
                     image_url=source_url,
@@ -283,12 +287,14 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
                     min_score=PANEL_REVIEW_MIN_SCORE,
                 )
                 score = float(review.get("score", 0.0))
-                print(f"      - Quality score: {score:.1f}/10")
+                print(f"      ✓ Quality score: {score:.1f}/10 (threshold: {PANEL_REVIEW_MIN_SCORE})")
                 issues = review.get("issues") or []
                 if issues:
-                    print(f"      - Issues: {issues}")
+                    print(f"      ⚠️  Issues found:")
+                    for i, issue in enumerate(issues, 1):
+                        print(f"         {i}. {issue}")
             except Exception as e:
-                print(f"      ! Panel review failed (attempt {attempt}): {e}")
+                print(f"      ❌ Panel review failed (attempt {attempt}): {e}")
                 review = None
                 score = 0.0
 
@@ -301,27 +307,33 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
 
             # If we passed the quality threshold, stop retrying
             if score >= PANEL_REVIEW_MIN_SCORE:
-                print("      ✓ Panel passed quality threshold.")
+                print(f"      ✅ Panel passed quality threshold! (score {score:.1f} >= {PANEL_REVIEW_MIN_SCORE})")
                 break
 
             # Otherwise, refine prompt using suggested fix (if any) and try again
-            if review:
-                fix = (review.get("suggested_fix_prompt") or "").strip()
-            else:
-                fix = ""
+            if attempt < PANEL_REVIEW_MAX_ATTEMPTS:
+                print(f"      ⚠️  Score {score:.1f} below threshold {PANEL_REVIEW_MIN_SCORE}, will retry...")
+                
+                if review:
+                    fix = (review.get("suggested_fix_prompt") or "").strip()
+                else:
+                    fix = ""
 
-            if fix:
-                print(f"      - Applying suggested fix to prompt: {fix}")
-                # Keep the original visual description but append additional guidance
-                current_prompt = base_prompt + " " + fix
+                if fix:
+                    print(f"      → Applying suggested fix: {fix[:100]}...")
+                    # Keep the original visual description but append additional guidance
+                    current_prompt = base_prompt + " " + fix
+                else:
+                    print(f"      → No specific fix suggested; retrying with same prompt")
             else:
-                print("      - No specific fix suggested; retrying with same prompt.")
+                print(f"      ⚠️  Max attempts reached, will use best attempt")
 
         # After attempts, accept best attempt (even if below threshold)
         if best_image_bytes is None or best_source_url is None:
             raise RuntimeError(f"Panel {idx}: generation failed; no image bytes returned")
 
-        print(f"      - Uploading best attempt (score={best_score:.1f}) to storage...")
+        print(f"\n      📦 Using best attempt (score={best_score:.1f})")
+        print(f"      → Uploading to storage...")
         image_url = upload_image_and_get_url(
             img_bytes=best_image_bytes,
             chapter_id=chapter_id,
