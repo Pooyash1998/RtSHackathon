@@ -15,7 +15,12 @@ __pycache__
 # Pyenv
 .python-version
 
-# dotenv
+# dotenv - never commit these!
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
 
 # MacOS system files
 .DS_Store
