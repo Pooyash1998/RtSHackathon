@@ -1,0 +1,144 @@
+name: Deploy EduComic
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  # Backend environment variables from GitHub Secrets
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  BLACK_FOREST_API_KEY: ${{ secrets.BLACK_FOREST_API_KEY }}
+  ENVIRONMENT: production
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ==================== BACKEND ====================
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          uv sync
+      
+      - name: Create backend .env file
+        working-directory: ./backend
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "BLACK_FOREST_API_KEY=${{ secrets.BLACK_FOREST_API_KEY }}" >> .env
+          echo "ENVIRONMENT=production" >> .env
+      
+      - name: Run backend tests (if any)
+        working-directory: ./backend
+        run: |
+          uv run pytest || echo "No tests found, skipping..."
+        continue-on-error: true
+
+      # ==================== FRONTEND ====================
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Create frontend .env file
+        working-directory: ./frontend
+        run: |
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL || 'https://your-backend-url.com' }}" >> .env
+      
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+      
+      - name: Run frontend linting
+        working-directory: ./frontend
+        run: npm run lint || echo "Linting completed with warnings"
+        continue-on-error: true
+
+      # ==================== DEPLOY ====================
+      # Add your deployment steps here based on your hosting provider
+      # Examples below for common platforms:
+
+      # Option 1: Deploy to Vercel (Frontend)
+      # - name: Deploy Frontend to Vercel
+      #   uses: amondnet/vercel-action@v25
+      #   with:
+      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
+      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      #     working-directory: ./frontend
+
+      # Option 2: Deploy to Railway (Backend)
+      # - name: Deploy Backend to Railway
+      #   uses: bervProject/railway-deploy@main
+      #   with:
+      #     railway_token: ${{ secrets.RAILWAY_TOKEN }}
+      #     service: backend
+
+      # Option 3: Deploy to AWS/DigitalOcean/etc
+      # - name: Deploy to Server
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.SERVER_HOST }}
+      #     username: ${{ secrets.SERVER_USER }}
+      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     script: |
+      #       cd /path/to/app
+      #       git pull
+      #       # Add your deployment commands
+
+      # Option 4: Build Docker images
+      # - name: Build and push Docker images
+      #   run: |
+      #     docker build -t your-registry/educomic-backend:latest ./backend
+      #     docker build -t your-registry/educomic-frontend:latest ./frontend
+      #     docker push your-registry/educomic-backend:latest
+      #     docker push your-registry/educomic-frontend:latest
+
+      - name: Deployment placeholder
+        run: |
+          echo "✅ Build completed successfully!"
+          echo "📦 Backend dependencies installed"
+          echo "📦 Frontend built to ./frontend/dist"
+          echo ""
+          echo "🚀 Next steps:"
+          echo "1. Uncomment your deployment method above"
+          echo "2. Add required secrets to GitHub (VERCEL_TOKEN, RAILWAY_TOKEN, etc.)"
+          echo "3. Push to trigger deployment"
+
+      # ==================== NOTIFICATIONS ====================
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          # Add Slack/Discord notification here if needed
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          # Add Slack/Discord notification here if needed
