@@ -314,17 +314,84 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
             if attempt < PANEL_REVIEW_MAX_ATTEMPTS:
                 print(f"      ⚠️  Score {score:.1f} below threshold {PANEL_REVIEW_MIN_SCORE}, will retry...")
                 
+                # Build aggressive, targeted fix prompt
+                fix_parts = []
+                
+                # Get the suggested fix from the review
                 if review:
-                    fix = (review.get("suggested_fix_prompt") or "").strip()
+                    suggested_fix = (review.get("suggested_fix_prompt") or "").strip()
+                    if suggested_fix:
+                        fix_parts.append(suggested_fix)
+                    
+                    # Extract specific issues and create targeted fixes
+                    issues = review.get("issues") or []
+                    dimensions = review.get("dimensions") or {}
+                    
+                    # If text accuracy is low, be VERY strict about spelling
+                    text_accuracy = dimensions.get("text_accuracy", 0.0)
+                    if text_accuracy < 7.0 and issues:
+                        fix_parts.append(
+                            "CRITICAL: Text must be spelled EXACTLY correctly with no errors. "
+                            "Double-check every word for spelling mistakes."
+                        )
+                    
+                    # If character accuracy is low, emphasize character presence
+                    char_accuracy = dimensions.get("character_accuracy", 0.0)
+                    if char_accuracy < 7.0:
+                        fix_parts.append(
+                            f"REQUIRED: All characters must be clearly visible: {', '.join(featured_students)}. "
+                            "Each character must be distinct and recognizable."
+                        )
+                    
+                    # Add specific issue-based fixes
+                    for issue in issues:
+                        issue_lower = issue.lower()
+                        
+                        # Spelling/text issues
+                        if any(word in issue_lower for word in ["spell", "misspell", "wrong text", "incorrect text"]):
+                            fix_parts.append(
+                                f"FIX IMMEDIATELY: {issue}. "
+                                "Verify spelling character-by-character before rendering."
+                            )
+                        
+                        # Missing elements
+                        elif "missing" in issue_lower:
+                            fix_parts.append(
+                                f"MUST ADD: {issue}. "
+                                "This element is required and cannot be omitted."
+                            )
+                        
+                        # Bubble/dialogue issues
+                        elif any(word in issue_lower for word in ["bubble", "dialogue", "speech"]):
+                            fix_parts.append(
+                                f"DIALOGUE FIX: {issue}. "
+                                "Ensure bubble tails point to the correct speaker."
+                            )
+                
+                # Escalate strictness on subsequent attempts
+                if attempt == 2:
+                    fix_parts.insert(0, 
+                        "SECOND ATTEMPT - BE MORE CAREFUL: The previous image had errors. "
+                        "Pay extra attention to the following corrections:"
+                    )
+                elif attempt >= 3:
+                    fix_parts.insert(0,
+                        "FINAL ATTEMPT - MAXIMUM PRECISION REQUIRED: Multiple attempts have failed. "
+                        "This is the last chance. Follow these corrections EXACTLY:"
+                    )
+                
+                if fix_parts:
+                    # Join all fix parts with clear separation
+                    comprehensive_fix = " ".join(fix_parts)
+                    print(f"      → Applying targeted fixes:")
+                    for i, part in enumerate(fix_parts, 1):
+                        print(f"         {i}. {part[:80]}...")
+                    
+                    # Append to base prompt with emphasis
+                    current_prompt = base_prompt + "\n\nCRITICAL CORRECTIONS: " + comprehensive_fix
                 else:
-                    fix = ""
-
-                if fix:
-                    print(f"      → Applying suggested fix: {fix[:100]}...")
-                    # Keep the original visual description but append additional guidance
-                    current_prompt = base_prompt + " " + fix
-                else:
-                    print(f"      → No specific fix suggested; retrying with same prompt")
+                    print(f"      → No specific fixes available; retrying with same prompt")
+                    current_prompt = base_prompt
             else:
                 print(f"      ⚠️  Max attempts reached, will use best attempt")
 
