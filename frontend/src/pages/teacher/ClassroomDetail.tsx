@@ -64,14 +64,14 @@ const ClassroomDetail = () => {
   useEffect(() => {
     const fetchClassroomData = async () => {
       if (!id) return;
-      
+
       try {
         setIsLoading(true);
-        
+
         // Fetch classroom with students
         const classroomResponse = await api.classrooms.getById(id);
         setClassroom(classroomResponse.classroom);
-        
+
         // Map students and add status based on avatar_url
         const studentsWithStatus = classroomResponse.classroom.students.map(student => {
           console.log(`Student ${student.name}:`, {
@@ -85,11 +85,11 @@ const ClassroomDetail = () => {
           };
         });
         setStudents(studentsWithStatus);
-        
+
         // Fetch chapters
         const chaptersResponse = await api.classrooms.getChapters(id);
         setChapters(chaptersResponse.chapters);
-        
+
         // Fetch materials
         const materialsResponse = await api.classrooms.getMaterials(id);
         setUploadedMaterials(materialsResponse.materials);
@@ -147,11 +147,11 @@ const ClassroomDetail = () => {
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-    
+
     if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
       setIsDragging(false);
     }
@@ -164,7 +164,7 @@ const ClassroomDetail = () => {
 
     const droppedFiles = Array.from(e.dataTransfer.files);
     const pdfFiles = droppedFiles.filter(file => file.type === 'application/pdf');
-    
+
     if (pdfFiles.length !== droppedFiles.length) {
       toast.error("Only PDF files are allowed");
     }
@@ -192,7 +192,7 @@ const ClassroomDetail = () => {
 
   const handleUploadMaterials = async () => {
     if (!id) return;
-    
+
     setIsUploading(true);
     try {
       // Upload each material
@@ -202,7 +202,7 @@ const ClassroomDetail = () => {
           setIsUploading(false);
           return;
         }
-        
+
         await api.classrooms.uploadMaterial(
           id,
           materialFile.file,
@@ -210,16 +210,16 @@ const ClassroomDetail = () => {
           materialFile.description || undefined
         );
       }
-      
+
       toast.success(`${materials.length} material${materials.length > 1 ? 's' : ''} uploaded successfully!`);
-      
+
       // Clear the materials list
       setMaterials([]);
-      
+
       // Refresh uploaded materials
       const materialsResponse = await api.classrooms.getMaterials(id);
       setUploadedMaterials(materialsResponse.materials);
-      
+
     } catch (error) {
       console.error("Failed to upload materials:", error);
       toast.error("Failed to upload materials. Please try again.");
@@ -238,9 +238,11 @@ const ClassroomDetail = () => {
   // Group chapters by week or keep sorted by date
   const groupedChapters = () => {
     if (storySortBy === "date") {
-      return [{ label: "All Stories", chapters: [...chapters].sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )}];
+      return [{
+        label: "All Stories", chapters: [...chapters].sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      }];
     }
 
     const groups: { [key: string]: Chapter[] } = {};
@@ -299,7 +301,7 @@ const ClassroomDetail = () => {
           {/* Main Content */}
           <div className="container mx-auto px-4 py-8">
             {/* Classroom Header - Glass Effect */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -320,10 +322,10 @@ const ClassroomDetail = () => {
                     <code className="px-2 py-1 bg-muted/50 backdrop-blur-sm rounded text-xs font-mono border border-border/30">
                       {window.location.origin}/student/join/{id}
                     </code>
-                    <Button 
-                      onClick={copyInviteLink} 
-                      size="sm" 
-                      variant="ghost" 
+                    <Button
+                      onClick={copyInviteLink}
+                      size="sm"
+                      variant="ghost"
                       className="h-7 px-2 backdrop-blur-sm"
                     >
                       <Copy className="w-3 h-3" />
@@ -379,7 +381,7 @@ const ClassroomDetail = () => {
 
                     {/* Grid View */}
                     {studentViewMode === "grid" && (
-                      <motion.div 
+                      <motion.div
                         className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -398,8 +400,8 @@ const ClassroomDetail = () => {
                                 <div className="flex justify-center mb-4">
                                   <div className="relative">
                                     <Avatar className="w-24 h-24 border-4 border-border/30">
-                                      <AvatarImage 
-                                        src={student.photo_url || student.avatar_url || undefined} 
+                                      <AvatarImage
+                                        src={student.photo_url || student.avatar_url || undefined}
                                         alt={student.name}
                                         className="object-cover"
                                       />
@@ -410,8 +412,8 @@ const ClassroomDetail = () => {
                                     {student.avatar_url && student.photo_url && (
                                       <div className="absolute -bottom-2 -right-2 w-12 h-12 rounded-full border-3 border-background overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
                                         <Avatar className="w-full h-full">
-                                          <AvatarImage 
-                                            src={student.avatar_url} 
+                                          <AvatarImage
+                                            src={student.avatar_url}
                                             alt={`${student.name} avatar`}
                                             className="object-cover"
                                           />
@@ -423,7 +425,7 @@ const ClassroomDetail = () => {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 {/* Student Info - Fixed Height */}
                                 <div className="text-center flex-1 flex flex-col">
                                   <h3 className="font-semibold text-foreground text-lg mb-2 min-h-[28px]">
@@ -434,13 +436,13 @@ const ClassroomDetail = () => {
                                     {student.interests}
                                   </p>
                                 </div>
-                                
+
                                 {/* Status Badge - Fixed at Bottom */}
-                                <Badge 
-                                  className={`w-full justify-center ${student.status === "generated" 
-                                    ? "bg-green-500/80 text-white backdrop-blur-sm border-green-300/30" 
+                                <Badge
+                                  className={`w-full justify-center ${student.status === "generated"
+                                    ? "bg-green-500/80 text-white backdrop-blur-sm border-green-300/30"
                                     : "bg-amber-500/80 text-white backdrop-blur-sm border-amber-300/30"
-                                  }`}
+                                    }`}
                                 >
                                   {student.status === "generated" ? (
                                     <>
@@ -463,7 +465,7 @@ const ClassroomDetail = () => {
 
                     {/* List View */}
                     {studentViewMode === "list" && (
-                      <motion.div 
+                      <motion.div
                         className="space-y-3"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -482,9 +484,9 @@ const ClassroomDetail = () => {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3">
                                       <h3 className="font-semibold text-foreground text-lg">{student.name}</h3>
-                                      <Badge 
-                                        className={student.status === "generated" 
-                                          ? "bg-green-500/80 text-white backdrop-blur-sm border-green-300/30" 
+                                      <Badge
+                                        className={student.status === "generated"
+                                          ? "bg-green-500/80 text-white backdrop-blur-sm border-green-300/30"
                                           : "bg-amber-500/80 text-white backdrop-blur-sm border-amber-300/30"
                                         }
                                       >
@@ -505,12 +507,12 @@ const ClassroomDetail = () => {
                                       {student.interests}
                                     </p>
                                   </div>
-                                  
+
                                   {student.avatar_url && (
                                     <div className="flex-shrink-0">
                                       <div className="w-12 h-12 rounded-lg border-2 border-border/30 overflow-hidden">
-                                        <img 
-                                          src={student.avatar_url} 
+                                        <img
+                                          src={student.avatar_url}
                                           alt={`${student.name} avatar`}
                                           className="w-full h-full object-cover"
                                         />
@@ -583,8 +585,8 @@ const ClassroomDetail = () => {
                                 <div className="flex flex-col md:flex-row gap-4">
                                   <div className="w-full md:w-32 h-32 bg-muted/50 backdrop-blur-sm rounded-lg flex items-center justify-center border border-border/30 overflow-hidden">
                                     {chapter.thumbnail_url ? (
-                                      <img 
-                                        src={chapter.thumbnail_url} 
+                                      <img
+                                        src={chapter.thumbnail_url}
                                         alt={`Chapter ${chapter.index}`}
                                         className="w-full h-full object-cover"
                                       />
@@ -594,7 +596,7 @@ const ClassroomDetail = () => {
                                   </div>
                                   <div className="flex-1 space-y-3">
                                     <div>
-                                      <h3 className="text-xl font-bold text-foreground">Chapter {chapter.index}</h3>
+                                      <h3 className="text-xl font-bold text-foreground">{chapter.story_title || `Chapter ${chapter.index}`}</h3>
                                       <p className="text-sm text-muted-foreground line-clamp-2">
                                         {chapter.chapter_outline || chapter.original_prompt}
                                       </p>
@@ -632,12 +634,11 @@ const ClassroomDetail = () => {
                   className="space-y-6"
                 >
                   {/* Upload Area */}
-                  <div 
-                    className={`backdrop-blur-lg bg-card/50 border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
-                      isDragging 
-                        ? 'border-primary bg-primary/10 scale-[1.02]' 
+                  <div
+                    className={`backdrop-blur-lg bg-card/50 border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${isDragging
+                        ? 'border-primary bg-primary/10 scale-[1.02]'
                         : 'border-muted-foreground/25 hover:border-primary/50'
-                    }`}
+                      }`}
                     onDragEnter={handleDragEnter}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -686,15 +687,15 @@ const ClassroomDetail = () => {
                                   </div>
                                 </div>
                                 <div className="flex gap-2">
-                                  <Button 
-                                    variant="outline" 
+                                  <Button
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => window.open(material.file_url, '_blank')}
                                   >
                                     View
                                   </Button>
-                                  <Button 
-                                    variant="ghost" 
+                                  <Button
+                                    variant="ghost"
                                     size="sm"
                                     onClick={async () => {
                                       if (confirm('Are you sure you want to delete this material?')) {
@@ -739,15 +740,15 @@ const ClassroomDetail = () => {
                                     </p>
                                   </div>
                                 </div>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => removeMaterial(index)}
                                 >
                                   <X className="w-4 h-4" />
                                 </Button>
                               </div>
-                              
+
                               <div className="space-y-2">
                                 <Label htmlFor={`material-title-${index}`}>Material Title *</Label>
                                 <Input
@@ -774,8 +775,8 @@ const ClassroomDetail = () => {
                           </Card>
                         ))}
                       </div>
-                      <Button 
-                        className="w-full backdrop-blur-sm" 
+                      <Button
+                        className="w-full backdrop-blur-sm"
                         onClick={handleUploadMaterials}
                         disabled={isUploading}
                       >

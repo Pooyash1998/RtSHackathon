@@ -3,7 +3,7 @@ import { LayoutDashboard, Users, BookOpen, User, LogOut, ChevronDown, ChevronRig
 import { Sidebar, SidebarBody } from "@/components/ui/animated-sidebar";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { getClassroomsByStudentId } from "@/lib/mockData";
+import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface StudentSidebarProps {
@@ -17,10 +17,19 @@ export function StudentSidebar({ studentId, open, setOpen }: StudentSidebarProps
   const [classroomsExpanded, setClassroomsExpanded] = useState(false);
 
   useEffect(() => {
-    if (studentId) {
-      const classroomData = getClassroomsByStudentId(studentId);
-      setClassrooms(classroomData);
-    }
+    const loadClassrooms = async () => {
+      if (!studentId) return;
+
+      try {
+        const response = await api.students.getClassrooms(studentId);
+        setClassrooms(response.classrooms || []);
+      } catch (error) {
+        console.error("Failed to load classrooms:", error);
+        setClassrooms([]);
+      }
+    };
+
+    loadClassrooms();
   }, [studentId]);
 
   return (

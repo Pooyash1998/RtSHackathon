@@ -1,4 +1,3 @@
 database
 main
 services
-test_comic_creation

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Download, Share2, Edit } from "lucide-react";
+import { ChevronLeft, Download, Share2, Edit, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,108 +15,74 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 interface Panel {
   id: string;
-  panel_number: number;
-  image_url: string;
-  dialogue: string;
+  index: number;
+  image: string;
+  chapter_id: string;
+  created_at: string;
 }
-
-const mockPanels: Panel[] = [
-  {
-    id: "1",
-    panel_number: 1,
-    image_url: "",
-    dialogue: "Emma: 'Wow! Look at this space race challenge! We need to understand forces to win!'"
-  },
-  {
-    id: "2",
-    panel_number: 2,
-    image_url: "",
-    dialogue: "Liam: 'Remember Newton's First Law? An object in motion stays in motion unless acted upon by a force!'"
-  },
-  {
-    id: "3",
-    panel_number: 3,
-    image_url: "",
-    dialogue: "Sophia: 'And the Second Law tells us that Force equals Mass times Acceleration!'"
-  },
-  {
-    id: "4",
-    panel_number: 4,
-    image_url: "",
-    dialogue: "Emma: 'Let's calculate the force needed to accelerate our spacecraft!'"
-  },
-  {
-    id: "5",
-    panel_number: 5,
-    image_url: "",
-    dialogue: "Liam: 'If our ship has a mass of 1000kg and we need 5m/s² acceleration...'"
-  },
-  {
-    id: "6",
-    panel_number: 6,
-    image_url: "",
-    dialogue: "Sophia: 'That's 5000 Newtons of force! F = ma, just like we learned!'"
-  },
-  {
-    id: "7",
-    panel_number: 7,
-    image_url: "",
-    dialogue: "Emma: 'Don't forget Newton's Third Law! For every action, there's an equal and opposite reaction!'"
-  },
-  {
-    id: "8",
-    panel_number: 8,
-    image_url: "",
-    dialogue: "Liam: 'The rocket pushes gas backward, and the gas pushes the rocket forward!'"
-  },
-  {
-    id: "9",
-    panel_number: 9,
-    image_url: "",
-    dialogue: "Sophia: 'We're pulling ahead! Understanding physics really works!'"
-  },
-  {
-    id: "10",
-    panel_number: 10,
-    image_url: "",
-    dialogue: "Emma: 'Team, we need to reduce mass to go faster. Less mass means more acceleration with the same force!'"
-  },
-  {
-    id: "11",
-    panel_number: 11,
-    image_url: "",
-    dialogue: "Liam: 'The aliens are catching up! Time to apply maximum thrust!'"
-  },
-  {
-    id: "12",
-    panel_number: 12,
-    image_url: "",
-    dialogue: "All: 'We won! Newton's Laws saved the day! Science is awesome!'"
-  }
-];
 
 const StoryViewer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [panels] = useState<Panel[]>(mockPanels);
+  const [chapter, setChapter] = useState<any>(null);
+  const [panels, setPanels] = useState<Panel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [exportSettings, setExportSettings] = useState({
     pageSize: "a4",
     layout: "2",
     includeDialogue: "yes"
   });
 
+  // Load chapter data from API
+  useEffect(() => {
+    const loadChapter = async () => {
+      if (!id) return;
+
+      setIsLoading(true);
+      try {
+        const response = await api.chapters.getById(id);
+        setChapter(response.chapter);
+        setPanels(response.chapter.panels || []);
+      } catch (error) {
+        console.error("Failed to load chapter:", error);
+        toast.error("Failed to load chapter");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadChapter();
+  }, [id]);
+
   const handleExport = () => {
     toast.success("PDF export started! Your download will begin shortly.");
   };
 
-  const story = {
-    title: "Newton's Space Race",
-    created_at: "2024-03-15",
-    classroom: "Physics 101"
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading chapter...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!chapter) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Chapter not found</p>
+          <Button onClick={() => navigate(-1)}>Go Back</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -128,7 +94,7 @@ const StoryViewer = () => {
               <ChevronLeft className="w-5 h-5 mr-2" />
               Back
             </Button>
-            
+
             <div className="flex gap-2">
               <Button variant="outline" size="sm">
                 <Edit className="w-4 h-4 mr-2" />
@@ -152,11 +118,11 @@ const StoryViewer = () => {
                       Configure your PDF export settings
                     </DialogDescription>
                   </DialogHeader>
-                  
+
                   <div className="space-y-6 py-4">
                     <div className="space-y-3">
                       <Label>Page Size</Label>
-                      <RadioGroup value={exportSettings.pageSize} onValueChange={(v) => setExportSettings({...exportSettings, pageSize: v})}>
+                      <RadioGroup value={exportSettings.pageSize} onValueChange={(v) => setExportSettings({ ...exportSettings, pageSize: v })}>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="a4" id="a4" />
                           <Label htmlFor="a4">A4</Label>
@@ -170,7 +136,7 @@ const StoryViewer = () => {
 
                     <div className="space-y-3">
                       <Label>Layout</Label>
-                      <RadioGroup value={exportSettings.layout} onValueChange={(v) => setExportSettings({...exportSettings, layout: v})}>
+                      <RadioGroup value={exportSettings.layout} onValueChange={(v) => setExportSettings({ ...exportSettings, layout: v })}>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="2" id="2panel" />
                           <Label htmlFor="2panel">2 panels per page</Label>
@@ -184,7 +150,7 @@ const StoryViewer = () => {
 
                     <div className="space-y-3">
                       <Label>Include Dialogue</Label>
-                      <RadioGroup value={exportSettings.includeDialogue} onValueChange={(v) => setExportSettings({...exportSettings, includeDialogue: v})}>
+                      <RadioGroup value={exportSettings.includeDialogue} onValueChange={(v) => setExportSettings({ ...exportSettings, includeDialogue: v })}>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="yes" id="yes" />
                           <Label htmlFor="yes">Yes</Label>
@@ -213,36 +179,48 @@ const StoryViewer = () => {
         <div className="space-y-8">
           {/* Story Header */}
           <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-foreground">{story.title}</h1>
+            <h1 className="text-4xl font-bold text-foreground">{chapter.story_title || `Chapter ${chapter.index}`}</h1>
             <div className="flex gap-3 items-center flex-wrap">
               <p className="text-muted-foreground">
-                Created on {new Date(story.created_at).toLocaleDateString()}
+                Created on {new Date(chapter.created_at).toLocaleDateString()}
               </p>
-              <Badge variant="outline">{story.classroom}</Badge>
+              <Badge variant="outline">Chapter {chapter.index}</Badge>
             </div>
           </div>
 
           {/* Panels Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {panels.map((panel) => (
-              <Card key={panel.id} className="overflow-hidden border-2">
-                <div className="relative">
-                  <Badge className="absolute top-2 left-2 bg-background/90 text-foreground">
-                    Panel {panel.panel_number}
-                  </Badge>
-                  <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                    <span className="text-6xl">📚</span>
+          {panels.length === 0 ? (
+            <Card>
+              <CardContent className="pt-12 pb-12 text-center">
+                <p className="text-muted-foreground">No panels generated yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {panels.sort((a, b) => a.index - b.index).map((panel) => (
+                <Card key={panel.id} className="overflow-hidden border-2">
+                  <div className="relative">
+                    <Badge className="absolute top-2 left-2 bg-background/90 text-foreground">
+                      Panel {panel.index}
+                    </Badge>
+                    {panel.image ? (
+                      <div className="aspect-square overflow-hidden bg-muted">
+                        <img
+                          src={panel.image}
+                          alt={`Panel ${panel.index}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-square bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                        <span className="text-6xl">📚</span>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <CardContent className="pt-4">
-                  <div className="bg-muted rounded-lg p-4 relative">
-                    <div className="absolute -top-2 left-4 w-4 h-4 bg-muted transform rotate-45" />
-                    <p className="text-sm text-foreground">{panel.dialogue}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Navigation */}
           <div className="flex justify-between pt-8 border-t">

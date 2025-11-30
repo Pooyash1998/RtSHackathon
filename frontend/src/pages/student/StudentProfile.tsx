@@ -17,33 +17,34 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getStudentById } from "@/lib/mockData";
+import api from "@/lib/api";
 
 const StudentProfile = () => {
     const { studentId } = useParams();
     const navigate = useNavigate();
     const [student, setStudent] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (studentId) {
-            const studentData = getStudentById(studentId);
-
-            // Handle newly created students not in mock data
-            if (!studentData) {
-                setStudent({
-                    id: studentId,
-                    name: "New Student",
-                    interests: "Learning",
-                    avatar_url: null,
-                    photo_url: null,
-                    classroom_id: "",
-                    created_at: new Date().toISOString()
-                });
-            } else {
-                setStudent(studentData);
-            }
+            loadStudentData();
         }
     }, [studentId]);
+
+    const loadStudentData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await api.students.getById(studentId!);
+            setStudent(response.student);
+        } catch (err) {
+            console.error("Failed to load student data:", err);
+            setError("Failed to load student profile");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const getInitials = (name: string) =>
         name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -55,10 +56,18 @@ const StudentProfile = () => {
         navigate("/");
     };
 
-    if (!student) {
+    if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <p className="text-muted-foreground">Loading...</p>
+            </div>
+        );
+    }
+
+    if (error || !student) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <p className="text-destructive">{error || "Student not found"}</p>
             </div>
         );
     }
