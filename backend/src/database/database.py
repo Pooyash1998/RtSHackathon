@@ -15,10 +15,19 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in .env file")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Initialize client - will fail gracefully if credentials are missing
+try:
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("WARNING: SUPABASE_URL and/or SUPABASE_KEY not set")
+        print(f"SUPABASE_URL present: {bool(SUPABASE_URL)}")
+        print(f"SUPABASE_KEY present: {bool(SUPABASE_KEY)}")
+        supabase = None
+    else:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("✓ Supabase client initialized successfully")
+except Exception as e:
+    print(f"ERROR initializing Supabase client: {e}")
+    supabase = None
 
 
 # ============================================
