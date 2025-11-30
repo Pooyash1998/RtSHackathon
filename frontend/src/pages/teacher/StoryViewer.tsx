@@ -33,8 +33,7 @@ const StoryViewer = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [exportSettings, setExportSettings] = useState({
     pageSize: "a4",
-    layout: "2",
-    includeDialogue: "yes"
+    layout: "2"
   });
 
   // Load chapter data from API
@@ -80,11 +79,40 @@ const StoryViewer = () => {
       const pageHeight = doc.internal.pageSize.getHeight();
       const panelsPerPage = parseInt(exportSettings.layout);
       const margin = 10;
+      const spacing = 5; // Space between panels
       const usableWidth = pageWidth - (2 * margin);
       const usableHeight = pageHeight - (2 * margin);
 
       // Sort panels by index
       const sortedPanels = [...panels].sort((a, b) => a.index - b.index);
+
+      // Calculate uniform panel dimensions that preserve aspect ratio
+      // Assume square panels (1:1 aspect ratio) - adjust if your panels have different ratios
+      const aspectRatio = 1; // width / height
+      
+      let maxPanelWidth: number, maxPanelHeight: number;
+      
+      if (panelsPerPage === 2) {
+        // 2 panels stacked vertically
+        maxPanelWidth = usableWidth;
+        maxPanelHeight = (usableHeight - spacing) / 2;
+      } else {
+        // 4 panels in 2x2 grid
+        maxPanelWidth = (usableWidth - spacing) / 2;
+        maxPanelHeight = (usableHeight - spacing) / 2;
+      }
+
+      // Calculate actual dimensions maintaining aspect ratio
+      let panelWidth: number, panelHeight: number;
+      if (maxPanelWidth / maxPanelHeight > aspectRatio) {
+        // Height is the limiting factor
+        panelHeight = maxPanelHeight;
+        panelWidth = panelHeight * aspectRatio;
+      } else {
+        // Width is the limiting factor
+        panelWidth = maxPanelWidth;
+        panelHeight = panelWidth / aspectRatio;
+      }
 
       for (let i = 0; i < sortedPanels.length; i++) {
         const panel = sortedPanels[i];
@@ -96,26 +124,23 @@ const StoryViewer = () => {
 
         // Calculate position based on layout
         const indexOnPage = i % panelsPerPage;
-        let x = margin;
-        let y = margin;
-        let imgWidth = usableWidth;
-        let imgHeight = usableHeight / panelsPerPage - 5;
+        let x: number, y: number;
 
         if (panelsPerPage === 2) {
-          y = margin + (indexOnPage * (usableHeight / 2));
-          imgHeight = usableHeight / 2 - 5;
-        } else if (panelsPerPage === 4) {
+          // Center horizontally, stack vertically
+          x = margin + (usableWidth - panelWidth) / 2;
+          y = margin + (indexOnPage * (maxPanelHeight + spacing)) + (maxPanelHeight - panelHeight) / 2;
+        } else {
+          // 2x2 grid, centered in each cell
           const row = Math.floor(indexOnPage / 2);
           const col = indexOnPage % 2;
-          x = margin + (col * (usableWidth / 2));
-          y = margin + (row * (usableHeight / 2));
-          imgWidth = usableWidth / 2 - 5;
-          imgHeight = usableHeight / 2 - 5;
+          x = margin + (col * (maxPanelWidth + spacing)) + (maxPanelWidth - panelWidth) / 2;
+          y = margin + (row * (maxPanelHeight + spacing)) + (maxPanelHeight - panelHeight) / 2;
         }
 
         try {
-          // Add image to PDF
-          doc.addImage(panel.image, 'PNG', x, y, imgWidth, imgHeight);
+          // Add image to PDF with uniform dimensions
+          doc.addImage(panel.image, 'PNG', x, y, panelWidth, panelHeight);
         } catch (err) {
           console.error(`Failed to add panel ${panel.index}:`, err);
         }
@@ -214,20 +239,6 @@ const StoryViewer = () => {
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="4" id="4panel" />
                           <Label htmlFor="4panel">4 panels per page</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label>Include Dialogue</Label>
-                      <RadioGroup value={exportSettings.includeDialogue} onValueChange={(v) => setExportSettings({ ...exportSettings, includeDialogue: v })}>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="yes" id="yes" />
-                          <Label htmlFor="yes">Yes</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="no" id="no" />
-                          <Label htmlFor="no">No</Label>
                         </div>
                       </RadioGroup>
                     </div>

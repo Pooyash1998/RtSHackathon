@@ -110,6 +110,7 @@ The Classroom Story Platform is an educational web application that enables teac
 3. WHEN PDF generation completes THEN the Platform SHALL return either a downloadable file or a temporary URL with expiration timestamp
 4. THE Platform SHALL include story title, classroom name, and creation date in PDF metadata
 5. THE Platform SHALL generate PDFs within 60 seconds of request submission
+6. WHEN rendering panels in PDF THEN the Platform SHALL maintain uniform scaling and preserve the original aspect ratio of all comic panels regardless of selected layout option
 
 ### Requirement 8: Data Persistence and Integrity
 

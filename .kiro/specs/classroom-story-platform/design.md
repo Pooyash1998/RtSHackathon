@@ -135,10 +135,14 @@ async def regenerate_panels(story_id: str, request: RegenerateRequest) -> Regene
 **ExportRouter** (`routers/export.py`)
 ```python
 @router.get("/api/stories/{story_id}/export/pdf")
-async def export_pdf_download(story_id: str) -> FileResponse
+async def export_pdf_download(
+    story_id: str,
+    page_size: Literal["a4", "letter"] = "a4",
+    layout: Literal["2", "4"] = "2"
+) -> FileResponse
 
 @router.post("/api/stories/{story_id}/export/pdf")
-async def export_pdf_url(story_id: str) -> ExportPDFResponse
+async def export_pdf_url(story_id: str, request: ExportPDFRequest) -> ExportPDFResponse
 ```
 
 #### 2. Service Layer
@@ -216,14 +220,31 @@ class ExportService:
     async def generate_pdf(
         story: Story,
         panels: List[Panel],
-        classroom: Classroom
+        classroom: Classroom,
+        layout: Literal["2", "4"] = "2",
+        page_size: Literal["a4", "letter"] = "a4"
     ) -> bytes  # Returns PDF binary data
+    
+    def calculate_panel_dimensions(
+        self,
+        page_width: float,
+        page_height: float,
+        panels_per_page: int,
+        original_aspect_ratio: float
+    ) -> Tuple[float, float]:  # Returns (width, height) maintaining aspect ratio
     
     async def upload_pdf_to_storage(
         pdf_data: bytes,
         story_id: str
     ) -> str  # Returns public URL
 ```
+
+**PDF Layout Algorithm:**
+- All panels maintain their original aspect ratio (typically square or 4:3)
+- For 2 panels per page: Calculate max width/height that fits page while preserving aspect ratio
+- For 4 panels per page: Arrange in 2x2 grid, scale uniformly to fit available space
+- Apply consistent scaling factor across all panels in the document
+- Center panels within their allocated space if aspect ratios differ from page layout
 
 #### 3. Database Layer
 
@@ -489,6 +510,10 @@ class RegenerateResponse(BaseModel):
     status: Literal["regenerating"]
 
 # Export models
+class ExportPDFRequest(BaseModel):
+    page_size: Literal["a4", "letter"] = "a4"
+    layout: Literal["2", "4"] = "2"
+
 class ExportPDFResponse(BaseModel):
     pdf_url: str
     expires_at: str
@@ -658,7 +683,11 @@ export interface StoryDetailResponse {
 *For any* exported story PDF, the PDF metadata should contain the story title, classroom name, and creation date.
 **Validates: Requirements 7.4**
 
-### Property 21: Foreign key constraint enforcement
+### Property 21: PDF panel aspect ratio preservation
+*For any* exported story PDF with any layout option (2 or 4 panels per page), all rendered panels should maintain their original aspect ratio with uniform scaling applied consistently across all panels.
+**Validates: Requirements 7.6**
+
+### Property 22: Foreign key constraint enforcement
 *For any* attempt to create a student with an invalid classroom_id or a panel with an invalid story_id, the Platform should reject the operation with an error.
 **Validates: Requirements 8.1, 8.2, 8.3**
 

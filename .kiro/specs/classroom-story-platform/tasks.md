@@ -254,8 +254,10 @@
   - Fetch all 20 panels with images and dialogue
   - Format panels in reading order with visual separation
   - Download images from URLs and embed in PDF
+  - Implement uniform scaling logic that preserves aspect ratios across all layout options
+  - Calculate panel dimensions to maintain consistent aspect ratio regardless of 2 or 4 panels per page layout
   - Return PDF as bytes or upload to Supabase storage
-  - _Requirements: 7.1, 7.3, 7.4_
+  - _Requirements: 7.1, 7.3, 7.4, 7.6_
 
 - [ ] 14.2 Create export router with PDF endpoints
   - GET /api/stories/{story_id}/export/pdf - download PDF directly
@@ -274,7 +276,11 @@
   - **Property 20: PDF metadata inclusion**
   - **Validates: Requirements 7.4**
 
-- [ ]* 14.6 Write unit tests for PDF export
+- [ ]* 14.6 Write property test for PDF aspect ratio preservation
+  - **Property 21: PDF panel aspect ratio preservation**
+  - **Validates: Requirements 7.6**
+
+- [ ]* 14.7 Write unit tests for PDF export
   - Test PDF generation with incomplete story returns 400
   - Test PDF download returns correct content type
   - Test PDF URL generation includes expiration
