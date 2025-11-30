@@ -31,6 +31,8 @@ const StoryViewer = () => {
   const [chapter, setChapter] = useState<any>(null);
   const [panels, setPanels] = useState<Panel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [allChapters, setAllChapters] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [exportSettings, setExportSettings] = useState({
     pageSize: "a4",
     layout: "2"
@@ -46,6 +48,26 @@ const StoryViewer = () => {
         const response = await api.chapters.getById(id);
         setChapter(response.chapter);
         setPanels(response.chapter.panels || []);
+
+        // Load all chapters for this classroom to enable navigation
+        if (response.chapter.classroom_id) {
+          try {
+            const chaptersResponse = await api.classrooms.getChapters(response.chapter.classroom_id);
+            if (chaptersResponse.success && chaptersResponse.chapters) {
+              // Sort chapters by created_at descending (newest first)
+              const sortedChapters = [...chaptersResponse.chapters].sort(
+                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              );
+              setAllChapters(sortedChapters);
+              
+              // Find current chapter index
+              const index = sortedChapters.findIndex(ch => ch.id === id);
+              setCurrentIndex(index);
+            }
+          } catch (error) {
+            console.error("Failed to load chapters list:", error);
+          }
+        }
       } catch (error) {
         console.error("Failed to load chapter:", error);
         toast.error("Failed to load chapter");
@@ -304,16 +326,34 @@ const StoryViewer = () => {
           )}
 
           {/* Navigation */}
-          <div className="flex justify-between pt-8 border-t">
-            <Button variant="outline">
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Previous Story
-            </Button>
-            <Button variant="outline">
-              Next Story
-              <ChevronLeft className="w-4 h-4 ml-2 rotate-180" />
-            </Button>
-          </div>
+          {allChapters.length > 1 && (
+            <div className="flex justify-between pt-8 border-t">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  if (currentIndex < allChapters.length - 1) {
+                    navigate(`/teacher/story/${allChapters[currentIndex + 1].id}`);
+                  }
+                }}
+                disabled={currentIndex === -1 || currentIndex >= allChapters.length - 1}
+              >
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Previous Story
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  if (currentIndex > 0) {
+                    navigate(`/teacher/story/${allChapters[currentIndex - 1].id}`);
+                  }
+                }}
+                disabled={currentIndex === -1 || currentIndex <= 0}
+              >
+                Next Story
+                <ChevronLeft className="w-4 h-4 ml-2 rotate-180" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
