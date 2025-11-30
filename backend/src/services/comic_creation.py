@@ -778,7 +778,7 @@ def call_flux_and_download(
         "width": width,
         "height": height,
         "output_format": "png",
-        "safety_tolerance": 2,
+        "safety_tolerance": 4,
         # You can uncomment this if you've found prompt_upsampling hurts text:
         # "prompt_upsampling": False,
     }
