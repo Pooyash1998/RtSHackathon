@@ -52,7 +52,7 @@ BFL_API_KEY = os.getenv("BFL_API_KEY") or os.getenv(
 )
 BFL_API_BASE = os.getenv("BFL_API_BASE", "https://api.bfl.ai")
 
-BFL_MODEL_ENDPOINT = os.getenv("BFL_MODEL_ENDPOINT", "flux-2-pro")
+BFL_MODEL_ENDPOINT = os.getenv("BFL_MODEL_ENDPOINT", "flux-2-flex")
 
 SUPABASE_IMAGES_BUCKET = os.getenv("SUPABASE_IMAGES_BUCKET")
 
@@ -184,7 +184,7 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
     # Generate images and create panel rows
     print(f"\n🎨 Step 7: Generating images with FLUX...")
     print(f"   Endpoint: {BFL_MODEL_ENDPOINT}")
-    print(f"   This may take 1–2 minutes per panel...\n")
+    print(f"   This may take 1-2 minutes per panel...\n")
     
     panel_index_to_url: Dict[int, str] = {}
     previous_panel_image_url: Optional[str] = None

@@ -110,7 +110,7 @@ async def _call_black_forest_api(prompt: str, api_key: str, image_url: Optional[
     Raises:
         httpx.HTTPError: If API request fails
     """
-    url = "https://api.bfl.ai/v1/flux-2-pro"
+    url = "https://api.bfl.ai/v1/flux-2-flex"
 
 
     headers = {
