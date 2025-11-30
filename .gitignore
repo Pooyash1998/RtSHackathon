@@ -47,3 +47,5 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+start-dev.sh

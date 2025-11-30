@@ -7,8 +7,10 @@ Step 2 of the pipeline:
 - Call OpenAI to generate full script + panel breakdown
 - Build FLUX prompts, call Black Forest Labs FLUX.2 [pro] to generate images
 - Use previous panel image + student avatars as multi-reference inputs
-- Upload images (Supabase Storage if configured) and create panel rows
-- Update chapter_outline JSON state and return full chapter payload
+- Run an OpenAI vision-based quality check per panel (optional, configurable)
+- Retry low-scoring panels up to N times with refined prompts
+- Upload final images (Supabase Storage if configured) and create panel rows
+- Update chapter JSON state and return full chapter payload
 """
 
 import os
@@ -30,6 +32,9 @@ from database.database import (
     create_panel,
 )
 
+# NEW: quality review helper
+from panel_review import review_panel_image
+
 # ─────────────────────────────────────────────────────────────
 # Environment + client setup
 # ─────────────────────────────────────────────────────────────
@@ -42,12 +47,19 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.1")
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Support both BFL_API_KEY and BLACK_FOREST_API_KEY for compatibility
-BFL_API_KEY = os.getenv("BFL_API_KEY") or os.getenv("BLACK_FOREST_API_KEY", "YOUR_BFL_API_KEY_HERE")
+BFL_API_KEY = os.getenv("BFL_API_KEY") or os.getenv(
+    "BLACK_FOREST_API_KEY", "YOUR_BFL_API_KEY_HERE"
+)
 BFL_API_BASE = os.getenv("BFL_API_BASE", "https://api.bfl.ai")
 
 BFL_MODEL_ENDPOINT = os.getenv("BFL_MODEL_ENDPOINT", "flux-2-pro")
 
 SUPABASE_IMAGES_BUCKET = os.getenv("SUPABASE_IMAGES_BUCKET")
+
+# NEW: panel review configuration
+PANEL_REVIEW_ENABLED = os.getenv("PANEL_REVIEW_ENABLED", "true").lower() == "true"
+PANEL_REVIEW_MIN_SCORE = float(os.getenv("PANEL_REVIEW_MIN_SCORE", "8.0"))
+PANEL_REVIEW_MAX_ATTEMPTS = int(os.getenv("PANEL_REVIEW_MAX_ATTEMPTS", "3"))
 
 if not OPENAI_API_KEY or OPENAI_API_KEY == "YOUR_OPENAI_API_KEY_HERE":
     print("[WARN] OPENAI_API_KEY not set; OpenAI calls will fail until you configure it.")
@@ -92,7 +104,7 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
     print(f"Chapter ID: {chapter_id}")
     print(f"Chosen Idea: {chosen_idea_id}")
     
-    print("\n�️  eStep 0: Cleaning up existing panels (if any)...")
+    print("\n🧹 Step 0: Cleaning up existing panels (if any)...")
     # Delete any existing panels for this chapter to allow regeneration
     try:
         supabase.table("panels").delete().eq("chapter_id", chapter_id).execute()
@@ -172,19 +184,20 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
     # Generate images and create panel rows
     print(f"\n🎨 Step 7: Generating images with FLUX...")
     print(f"   Endpoint: {BFL_MODEL_ENDPOINT}")
-    print(f"   This may take 1-2 minutes per panel...\n")
+    print(f"   This may take 1–2 minutes per panel...\n")
     
     panel_index_to_url: Dict[int, str] = {}
     previous_panel_image_url: Optional[str] = None
+    panel_quality: Dict[int, Dict[str, Any]] = {}
 
     # Make sure we generate in index order
     for panel_prompt in sorted(flux_prompts, key=lambda p: p["index"]):
         idx = panel_prompt["index"]
-        prompt = panel_prompt["prompt"]
+        base_prompt = panel_prompt["prompt"]
         aspect_ratio = panel_prompt["aspect_ratio"]
 
         print(f"   Panel {idx}/{len(flux_prompts)}:")
-        
+
         panel = panels_by_index.get(idx, {})
         featured_students = panel.get("featured_students") or []
         dialogue = panel.get("dialogue") or []
@@ -224,22 +237,96 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
             reference_images = reference_images[:8]
 
         print(f"      - Using {len(reference_images)} reference images")
-        print(f"      - Calling FLUX API...")
-        
-        image_bytes, source_url = call_flux_and_download(
-            prompt,
-            aspect_ratio=aspect_ratio,
-            reference_images=reference_images,
-        )
-        
-        print(f"      ✓ Image generated ({len(image_bytes)} bytes)")
 
-        print(f"      - Uploading to storage...")
+        # NEW: quality-aware generation loop
+        if not PANEL_REVIEW_ENABLED:
+            # Old behavior: single generation, no review
+            print(f"      - Review disabled; generating once...")
+            image_bytes, source_url = call_flux_and_download(
+                base_prompt,
+                aspect_ratio=aspect_ratio,
+                reference_images=reference_images,
+            )
+            image_url = upload_image_and_get_url(
+                img_bytes=image_bytes,
+                chapter_id=chapter_id,
+                panel_index=idx,
+                fallback_url=source_url,
+            )
+            create_panel(chapter_id=chapter_id, index=idx, image=image_url)
+            panel_index_to_url[idx] = image_url
+            previous_panel_image_url = image_url
+            continue
+
+        best_image_bytes: Optional[bytes] = None
+        best_source_url: Optional[str] = None
+        best_score: float = -1.0
+        best_review: Optional[Dict[str, Any]] = None
+
+        current_prompt = base_prompt
+
+        for attempt in range(1, PANEL_REVIEW_MAX_ATTEMPTS + 1):
+            print(f"      - Attempt {attempt}/{PANEL_REVIEW_MAX_ATTEMPTS}")
+            image_bytes, source_url = call_flux_and_download(
+                current_prompt,
+                aspect_ratio=aspect_ratio,
+                reference_images=reference_images,
+            )
+
+            # Run multimodal review against the *BFL sample URL*
+            try:
+                review = review_panel_image(
+                    image_url=source_url,
+                    panel=panel,
+                    classroom=classroom,
+                    students=students,
+                    min_score=PANEL_REVIEW_MIN_SCORE,
+                )
+                score = float(review.get("score", 0.0))
+                print(f"      - Quality score: {score:.1f}/10")
+                issues = review.get("issues") or []
+                if issues:
+                    print(f"      - Issues: {issues}")
+            except Exception as e:
+                print(f"      ! Panel review failed (attempt {attempt}): {e}")
+                review = None
+                score = 0.0
+
+            # Track best attempt so far
+            if score > best_score:
+                best_score = score
+                best_image_bytes = image_bytes
+                best_source_url = source_url
+                best_review = review
+
+            # If we passed the quality threshold, stop retrying
+            if score >= PANEL_REVIEW_MIN_SCORE:
+                print("      ✓ Panel passed quality threshold.")
+                break
+
+            # Otherwise, refine prompt using suggested fix (if any) and try again
+            if review:
+                fix = (review.get("suggested_fix_prompt") or "").strip()
+            else:
+                fix = ""
+
+            if fix:
+                print(f"      - Applying suggested fix to prompt: {fix}")
+                # Keep the original visual description but append additional guidance
+                current_prompt = base_prompt + " " + fix
+            else:
+                print("      - No specific fix suggested; retrying with same prompt.")
+
+        # After attempts, accept best attempt (even if below threshold)
+        if best_image_bytes is None or best_source_url is None:
+            raise RuntimeError(f"Panel {idx}: generation failed; no image bytes returned")
+
+        print(f"      - Uploading best attempt (score={best_score:.1f}) to storage...")
         image_url = upload_image_and_get_url(
-            img_bytes=image_bytes,
+            img_bytes=best_image_bytes,
             chapter_id=chapter_id,
             panel_index=idx,
-            fallback_url=source_url,
+            fallback_url=best_source_url,
         )
         print(f"      ✓ Uploaded: {image_url[:60]}...")
 
@@ -248,14 +335,23 @@ def commit_story_choice(chapter_id: str, chosen_idea_id: str) -> Dict[str, Any]:
 
         panel_index_to_url[idx] = image_url
         previous_panel_image_url = image_url
+        if best_review is not None:
+            panel_quality[idx] = best_review
 
     # Update chapter with story script and status
     print(f"\n💾 Step 8: Saving chapter data...")
-    update_chapter(chapter_id, {
-        "chosen_idea_id": chosen_idea_id,
-        "story_script": script,
-        "status": "ready",
-    })
+    # Attach panel_quality into the script for later inspection (optional)
+    if panel_quality:
+        script["panel_quality"] = panel_quality
+
+    update_chapter(
+        chapter_id,
+        {
+            "chosen_idea_id": chosen_idea_id,
+            "story_script": script,
+            "status": "ready",
+        },
+    )
     print(f"✓ Chapter updated to 'ready' status")
 
     # Build structured payload for frontend
@@ -334,25 +430,6 @@ def generate_full_script_and_panels(
 ) -> Dict[str, Any]:
     """
     Ask OpenAI for a full script + panel breakdown.
-
-    Expected JSON:
-    {
-      "episode_title": "string",
-      "learning_objectives": ["...", "..."],
-      "panels": [
-        {
-          "index": 1,
-          "setting": "short description of location/time",
-          "description": "what we see in the panel, visually",
-          "narration": "narrator text (if any)",
-          "dialogue": [
-            {"speaker": "Name", "text": "..." }
-          ],
-          "featured_students": ["Name1", "Name2"]
-        },
-        ...
-      ]
-    }
     """
 
     payload = _classroom_context_dict(classroom, students, teacher_outline)
@@ -366,7 +443,7 @@ def generate_full_script_and_panels(
 
     user_prompt = (
         "Using the given classroom, students, teacher_outline and chosen_idea, write a single comic chapter.\n\n"
-        "Constraints:\n"
+                "Constraints:\n"
         "- 8 to 12 panels total.\n"
         "- Panels 1–3: introduce the situation and characters.\n"
         "- Middle panels: show a small challenge or question related to the learning topic.\n"
@@ -375,8 +452,12 @@ def generate_full_script_and_panels(
         "- Each narration or dialogue line must be very short (max 10 words).\n"
         "- Each panel should be visually distinct and move the story forward.\n"
         "- Use the students' names in dialogue sometimes to make it personal.\n"
+        "- Do NOT have characters speak about themselves in the third person.\n"
+        "- Do NOT have a character address themselves by name in their own speech bubble.\n"
         "- Keep dialogue lines short (max 15 words).\n"
-        "- Make sure the story helps understand the subject in a concrete way.\n\n"
+        "- Make sure the story helps understand the subject in a concrete way.\n"
+        "- The 'speaker' field must always be either a student name from this classroom\n"
+        "  or 'Teacher' / 'Narrator'.\n\n"
         "Return ONLY a JSON object with this structure (no extra text):\n"
         "{\n"
         '  "episode_title": "short, fun title",\n'
@@ -438,22 +519,34 @@ def generate_full_script_and_panels(
 def _panel_text_for_prompt(panel: Dict[str, Any]) -> str:
     """
     Convert narration + dialogue into short, structured lines for FLUX.
+
+    We explicitly tell the model:
+    - Which character should have which bubble
+    - Where to place the bubble / tail
     """
     lines: List[str] = []
 
     narration = (panel.get("narration") or "").strip()
     if narration:
-        lines.append(f'NARRATION (top of panel): "{narration}"')
+        lines.append(
+            f'NARRATION_BOX (top of panel, no tail, centered): "{narration}"'
+        )
 
     for line in panel.get("dialogue") or []:
         speaker = (line.get("speaker") or "").strip()
         text = (line.get("text") or "").strip()
         if not text:
             continue
+
         if speaker:
-            lines.append(f'SPEECH (near {speaker.upper()}): "{text}"')
+            # Very explicit: who speaks, where the bubble goes, where the tail points
+            lines.append(
+                f'SPEECH_BUBBLE for {speaker.upper()} '
+                f'(bubble above or beside {speaker.upper()}, tail clearly pointing '
+                f'to {speaker.upper()}): "{text}"'
+            )
         else:
-            lines.append(f'SPEECH: "{text}"')
+            lines.append(f'UNASSIGNED_SPEECH_BUBBLE: "{text}"')
 
     return " | ".join(lines)
 
@@ -465,15 +558,7 @@ def build_flux_prompts_from_script(
 ) -> List[Dict[str, Any]]:
     """
     Build text-to-image prompts for each panel based on the script and classroom style.
-
-    Returns:
-      [
-        {"index": 1, "prompt": "...", "aspect_ratio": "3:2"},
-        ...
-      ]
-
-    The prompt now also tells FLUX.2 to render the actual narration + dialogue text
-    inside comic-style speech bubbles / narration boxes.
+    Now also instructs FLUX.2 to render the narration + dialogue text inside the panel.
     """
 
     design_style = classroom.get("design_style", "comic")
@@ -512,6 +597,7 @@ def build_flux_prompts_from_script(
         else:
             cast_phrase = "Show a small group of students and a teacher."
 
+        # Base visual prompt
         # Build the base visual prompt
         prompt = (
             f"A single comic panel {style_phrase}. "
@@ -521,6 +607,10 @@ def build_flux_prompts_from_script(
             "Keep composition readable for text bubbles. "
             "Keep character designs and overall style consistent across panels and "
             "with any reference images provided. "
+            "Each speech bubble MUST be attached to the correct speaker: the tail of "
+            "the bubble must clearly point to the mouth/head of the character who "
+            "is speaking. Do NOT show characters speaking if they have no speech "
+            "bubble defined for this panel. Do NOT duplicate or invent extra text."
         )
 
         if theme_phrase:
@@ -534,11 +624,13 @@ def build_flux_prompts_from_script(
                 "and narration boxes. Use bold, uppercase comic lettering in black "
                 "on white bubbles/boxes, with no distortion or extra flourishes. "
                 "Do NOT paraphrase or change the wording. Use every line exactly as given. "
-                "Text to write (each '|' separates a different bubble or box): "
+                "For each SPEECH_BUBBLE line, place the bubble near the named character "
+                "and point the tail directly to that character. For the NARRATION_BOX, "
+                "place it at the top of the panel with no tail. Text to write (each '|' "
+                "separates a different bubble or box): "
                 f"{panel_text} "
             )
 
-        # We still track an aspect ratio string and convert to width/height later
         aspect_ratio = "3:2"
 
         flux_prompts.append(
@@ -550,7 +642,6 @@ def build_flux_prompts_from_script(
         )
 
     return flux_prompts
-
 
 
 # ─────────────────────────────────────────────────────────────
@@ -609,7 +700,8 @@ def call_flux_and_download(
         "height": height,
         "output_format": "png",
         "safety_tolerance": 2,
-        "prompt_upsampling": False,
+        # You can uncomment this if you've found prompt_upsampling hurts text:
+        # "prompt_upsampling": False,
     }
 
     # Attach reference images as input_image..input_image_8
@@ -652,7 +744,7 @@ def call_flux_and_download(
 
         status = poll_data.get("status")
         
-        if poll_count % 5 == 0:  # Print every 5 polls (~3.75 seconds)
+        if poll_count % 5 == 0:  # Print every 5 polls
             elapsed = time.time() - start
             print(f"         → Still generating... ({elapsed:.1f}s elapsed, status: {status})")
         
@@ -688,7 +780,6 @@ def upload_image_and_get_url(
     if not SUPABASE_IMAGES_BUCKET:
         return fallback_url
 
-    # Generate unique ID for this image
     image_id = str(uuid.uuid4())
     path = f"chapters/{chapter_id}/panel_{panel_index:02d}_{image_id}.png"
 
@@ -715,8 +806,6 @@ def upload_image_and_get_url(
     except Exception as e:
         print(f"[WARN] Failed to upload image to Supabase Storage: {e}")
         return fallback_url
-
-
 
 
 
