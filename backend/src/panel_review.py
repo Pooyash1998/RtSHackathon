@@ -180,8 +180,8 @@ def review_panel_image(
         "  },\n"
         '  "issues": [ "string", ... ],    // list of concrete problems (mention bubble misalignment explicitly)\n'
         '  "suggested_fix_prompt": "short text prompt to append to the image model prompt, '
-        'max 2–3 sentences, focusing on the most important fixes such as moving specific '
-        'bubbles to the right character, correcting mis-written text, or adding/removing '
+        "max 2–3 sentences, focusing on the most important fixes such as moving specific "
+        "bubbles to the right character, correcting mis-written text, or adding/removing "
         'bubbles.",\n'
         '  "notes": "optional extra comments or explanations"\n'
         "}\n\n"
