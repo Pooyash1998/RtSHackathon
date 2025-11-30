@@ -15,10 +15,10 @@ I created proper Railway configuration files:
 
 ## 🚀 Quick Fix (3 Steps)
 
-### Step 1: Push the Fix
+### Step 1: Push the Docker Fix
 ```bash
-git add railway.json nixpacks.toml Procfile Dockerfile
-git commit -m "Fix Railway deployment configuration"
+git add railway.json nixpacks.toml Procfile Dockerfile RAILWAY_DOCKER_FIX.md
+git commit -m "Fix Railway deployment - use Docker"
 git push origin main
 ```
 
