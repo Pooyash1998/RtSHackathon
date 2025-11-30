@@ -4,11 +4,15 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Install UV
+# Install UV and bash
 RUN pip install uv
 
-# Copy backend files
+# Copy backend files and startup script
 COPY backend ./backend
+COPY start.sh /app/start.sh
+
+# Make startup script executable
+RUN chmod +x /app/start.sh
 
 # Change to backend directory
 WORKDIR /app/backend
@@ -19,5 +23,5 @@ RUN uv sync
 # Expose port
 EXPOSE 8000
 
-# Start command - Use shell form to properly expand $PORT
-CMD ["sh", "-c", "uv run uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Use the startup script
+CMD ["/app/start.sh"]
