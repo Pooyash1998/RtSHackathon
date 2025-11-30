@@ -1,6 +1,7 @@
 README.md
 pyproject.toml
 src/main.py
+src/panel_review.py
 src/database/database.py
 src/database/test_connection.py
 src/educomic.egg-info/PKG-INFO
@@ -14,8 +15,3 @@ src/services/comic_creation.py
 src/services/story_idea.py
 src/services/test_story_idea.py
 src/services/thumbnail.py
-src/services/chapter.py
-src/services/comic_creation.py
-src/services/story_idea.py
-src/services/test_story_idea.py
-src/services/flux_test.py

@@ -24,7 +24,7 @@ interface MaterialFile {
 
 const styles = [
   { id: "manga", name: "Manga" },
-  { id: "american", name: "American Comic" },
+  { id: "comic", name: "Comic" },
   { id: "cartoon", name: "Cartoon" }
 ];
 
