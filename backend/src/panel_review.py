@@ -123,7 +123,7 @@ def review_panel_image(
         "target_min_score": min_score,
     }
 
-system_prompt = (
+    system_prompt = (
         "You are a strict art director for kid-friendly educational comic books.\n"
         "You will be given the expected script for ONE panel (narration, dialogue, "
         "featured student names) plus the rendered image of that panel.\n"
@@ -153,8 +153,7 @@ system_prompt = (
         "self-speech should significantly lower text_accuracy and/or character_accuracy."
     )
 
-
-  user_prompt_text = (
+    user_prompt_text = (
         "Here is the structured description of what this panel SHOULD contain.\n"
         "Then you see the actual rendered image.\n\n"
         "Tasks:\n"
