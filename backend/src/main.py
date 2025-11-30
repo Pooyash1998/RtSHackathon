@@ -1099,6 +1099,40 @@ async def get_chapter_with_panels_endpoint(chapter_id: str):
         )
 
 
+@app.delete("/chapters/{chapter_id}")
+async def delete_chapter_endpoint(chapter_id: str):
+    """
+    Delete a chapter and all its panels.
+
+    Args:
+        chapter_id: UUID of the chapter to delete
+
+    Returns:
+        Success message
+    """
+    from database.database import delete_chapter, get_chapter
+
+    try:
+        # Verify chapter exists
+        chapter = get_chapter(chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+
+        # Delete the chapter (cascades to panels)
+        success = delete_chapter(chapter_id)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete chapter")
+
+        return {"success": True, "message": "Chapter deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete chapter: {str(e)}"
+        )
+
+
 @app.get("/students/{student_id}/chapters")
 async def get_student_chapters(student_id: str):
     """

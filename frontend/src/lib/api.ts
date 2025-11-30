@@ -435,6 +435,14 @@ export const api = {
           }>;
         };
       }>(`/chapters/${chapterId}`),
+
+    delete: (chapterId: string) =>
+      apiFetch<{
+        success: boolean;
+        message: string;
+      }>(`/chapters/${chapterId}`, {
+        method: 'DELETE',
+      }),
   },
 };
 

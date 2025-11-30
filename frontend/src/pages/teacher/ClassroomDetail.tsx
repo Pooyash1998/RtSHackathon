@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter, X, Loader2, Grid3x3, List } from "lucide-react";
+import { ChevronLeft, Copy, Plus, Upload, CheckCircle, Clock, Filter, X, Loader2, Grid3x3, List, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Student {
   id: string;
@@ -290,6 +301,23 @@ const ClassroomDetail = () => {
     } catch (error) {
       console.error("PDF export failed:", error);
       toast.error("Failed to generate PDF. Please try again.");
+    }
+  };
+
+  // Delete chapter
+  const handleDeleteChapter = async (chapterId: string, chapterTitle: string) => {
+    try {
+      toast.info("Deleting chapter...");
+      
+      await api.chapters.delete(chapterId);
+      
+      // Remove from local state
+      setChapters(chapters.filter(ch => ch.id !== chapterId));
+      
+      toast.success(`"${chapterTitle}" deleted successfully!`);
+    } catch (error) {
+      console.error("Failed to delete chapter:", error);
+      toast.error("Failed to delete chapter. Please try again.");
     }
   };
 
@@ -677,6 +705,35 @@ const ClassroomDetail = () => {
                                   >
                                     Export PDF
                                   </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="backdrop-blur-sm"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Chapter?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete "{chapter.story_title || `Chapter ${chapter.index}`}"? 
+                                          This will permanently delete the chapter and all its panels. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeleteChapter(chapter.id, chapter.story_title || `Chapter ${chapter.index}`)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                               </div>
                             </div>
