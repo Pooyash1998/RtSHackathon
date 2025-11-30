@@ -12,7 +12,7 @@ async function apiFetch<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -60,7 +60,7 @@ export const api = {
           created_at: string;
         }>;
       }>('/classrooms'),
-    
+
     getById: (classroomId: string) =>
       apiFetch<{
         success: boolean;
@@ -82,7 +82,7 @@ export const api = {
           }>;
         };
       }>(`/classrooms/${classroomId}`),
-    
+
     getStudents: (classroomId: string) =>
       apiFetch<{
         success: boolean;
@@ -95,7 +95,7 @@ export const api = {
           created_at: string;
         }>;
       }>(`/classrooms/${classroomId}/students`),
-    
+
     getChapters: (classroomId: string) =>
       apiFetch<{
         success: boolean;
@@ -105,10 +105,11 @@ export const api = {
           chapter_outline: string;
           original_prompt: string;
           thumbnail_url: string | null;
+          story_title?: string;
           created_at: string;
         }>;
       }>(`/classrooms/${classroomId}/chapters`),
-    
+
     getMaterials: (classroomId: string) =>
       apiFetch<{
         success: boolean;
@@ -123,7 +124,7 @@ export const api = {
           created_at: string;
         }>;
       }>(`/classrooms/${classroomId}/materials`),
-    
+
     uploadMaterial: async (
       classroomId: string,
       file: File,
@@ -136,7 +137,7 @@ export const api = {
       formData.append('title', title);
       if (description) formData.append('description', description);
       if (weekNumber) formData.append('week_number', weekNumber.toString());
-      
+
       const response = await fetch(
         `${API_BASE_URL}/classrooms/${classroomId}/materials/upload`,
         {
@@ -144,12 +145,12 @@ export const api = {
           body: formData,
         }
       );
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
         throw new Error(error.detail || 'Failed to upload material');
       }
-      
+
       return await response.json() as {
         success: boolean;
         material: {
@@ -164,7 +165,7 @@ export const api = {
         };
       };
     },
-    
+
     deleteMaterial: (materialId: string) =>
       apiFetch<{
         success: boolean;
@@ -188,7 +189,7 @@ export const api = {
       }>(`/story/generate-options?classroom_id=${classroomId}&lesson_prompt=${encodeURIComponent(lessonPrompt)}`, {
         method: 'POST',
       }),
-    
+
     startChapter: (classroomId: string, lessonPrompt: string) =>
       apiFetch<{
         success: boolean;
@@ -210,13 +211,27 @@ export const api = {
       }>(`/classrooms/${classroomId}/chapters/start?lesson_prompt=${encodeURIComponent(lessonPrompt)}`, {
         method: 'POST',
       }),
-    
+
     chooseIdea: (chapterId: string, ideaId: string, thumbnailUrl?: string) =>
       apiFetch<{
         success: boolean;
         chapter: any;
       }>(`/chapters/${chapterId}/choose-idea?idea_id=${ideaId}${thumbnailUrl ? `&thumbnail_url=${encodeURIComponent(thumbnailUrl)}` : ''}`, {
         method: 'POST',
+      }),
+
+    commitChapter: (chapterId: string, ideaId: string) =>
+      apiFetch<{
+        success: boolean;
+        message: string;
+        chapter_id: string;
+        status: string;
+      }>('/chapters/commit', {
+        method: 'POST',
+        body: JSON.stringify({
+          chapter_id: chapterId,
+          chosen_idea_id: ideaId,
+        }),
       }),
   },
 
@@ -245,7 +260,7 @@ export const api = {
           created_at: string;
         }>;
       }>('/students'),
-    
+
     create: (name: string, interests: string, photoUrl?: string) =>
       apiFetch<{
         success: boolean;
@@ -260,7 +275,7 @@ export const api = {
       }>(`/students/create?name=${encodeURIComponent(name)}&interests=${encodeURIComponent(interests)}${photoUrl ? `&photo_url=${encodeURIComponent(photoUrl)}` : ''}`, {
         method: 'POST',
       }),
-    
+
     joinClassroom: (studentId: string, classroomId: string) =>
       apiFetch<{
         success: boolean;
@@ -283,7 +298,7 @@ export const api = {
       }>(`/students/${studentId}/join-classroom/${classroomId}`, {
         method: 'POST',
       }),
-    
+
     getById: (studentId: string) =>
       apiFetch<{
         success: boolean;
@@ -305,7 +320,7 @@ export const api = {
           created_at: string;
         }>;
       }>(`/students/${studentId}`),
-    
+
     getClassrooms: (studentId: string) =>
       apiFetch<{
         success: boolean;
@@ -319,7 +334,24 @@ export const api = {
           created_at: string;
         }>;
       }>(`/students/${studentId}/classrooms`),
-    
+
+    getChapters: (studentId: string) =>
+      apiFetch<{
+        success: boolean;
+        chapters: Array<{
+          id: string;
+          classroom_id: string;
+          index: number;
+          chapter_outline: string;
+          original_prompt: string;
+          thumbnail_url: string | null;
+          classroom_name: string;
+          classroom_subject: string;
+          story_title?: string;
+          created_at: string;
+        }>;
+      }>(`/students/${studentId}/chapters`),
+
     leaveClassroom: (studentId: string, classroomId: string) =>
       apiFetch<{
         success: boolean;
@@ -327,23 +359,48 @@ export const api = {
       }>(`/students/${studentId}/leave-classroom/${classroomId}`, {
         method: 'DELETE',
       }),
-    
+
     uploadPhoto: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('filename', file.name);
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/students/upload-photo`, {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to upload photo');
       }
-      
+
       return await response.json() as { success: boolean; photo_url: string };
     },
+  },
+
+  // Chapters
+  chapters: {
+    getById: (chapterId: string) =>
+      apiFetch<{
+        success: boolean;
+        chapter: {
+          id: string;
+          classroom_id: string;
+          index: number;
+          chapter_outline: string;
+          original_prompt: string;
+          thumbnail_url: string | null;
+          story_title?: string;
+          created_at: string;
+          panels: Array<{
+            id: string;
+            chapter_id: string;
+            index: number;
+            image: string;
+            created_at: string;
+          }>;
+        };
+      }>(`/chapters/${chapterId}`),
   },
 };
 

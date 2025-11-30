@@ -3,47 +3,62 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ZoomIn } from "lucide-react";
-import { getStoryWithPanels } from "@/lib/mockData";
-
-interface Panel {
-  id: string;
-  panel_number: number;
-  image_url: string;
-  dialogue: string;
-}
+import { ChevronLeft, ZoomIn, LayoutGrid, List } from "lucide-react";
+import api from "@/lib/api";
+import { Panel } from "@/types/story";
 
 const StudentStoryReader = () => {
-  const { storyId, studentId } = useParams();
+  const { chapterId, studentId } = useParams();
   const navigate = useNavigate();
-  const [story, setStory] = useState<any>(null);
+  const [chapter, setChapter] = useState<any>(null);
   const [panels, setPanels] = useState<Panel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Header visibility state
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Image size control (10% - 200%)
-  const [imageScale, setImageScale] = useState(() => {
-    const saved = localStorage.getItem('storyReaderImageScale');
-    return saved ? parseInt(saved) : 75;
+  // Layout mode: 'webtoon' (vertical) or 'grid' (grid layout)
+  const [layoutMode, setLayoutMode] = useState<'webtoon' | 'grid'>(() => {
+    const saved = localStorage.getItem('storyReaderLayout');
+    return (saved as 'webtoon' | 'grid') || 'webtoon';
   });
 
-  // Load story data
+  // Image size control (10% - 200%), default 50% to fit 2 images on screen
+  const [imageScale, setImageScale] = useState(() => {
+    const saved = localStorage.getItem('storyReaderImageScale');
+    return saved ? parseInt(saved) : 50;
+  });
+
+  // Load chapter data from API
   useEffect(() => {
-    if (storyId) {
-      const storyData = getStoryWithPanels(storyId);
-      if (storyData) {
-        setStory(storyData);
-        setPanels(storyData.panels || []);
+    const loadChapter = async () => {
+      if (!chapterId) return;
+
+      setIsLoading(true);
+      try {
+        const response = await api.chapters.getById(chapterId);
+        setChapter(response.chapter);
+        setPanels(response.chapter.panels || []);
+      } catch (error) {
+        console.error("Failed to load chapter:", error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [storyId]);
+    };
+
+    loadChapter();
+  }, [chapterId]);
 
   // Save image scale preference
   useEffect(() => {
     localStorage.setItem('storyReaderImageScale', imageScale.toString());
   }, [imageScale]);
+
+  // Save layout mode preference
+  useEffect(() => {
+    localStorage.setItem('storyReaderLayout', layoutMode);
+  }, [layoutMode]);
 
   // Scroll direction detection
   const handleScroll = useCallback(() => {
@@ -81,10 +96,18 @@ const StudentStoryReader = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
-  if (!story) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <p className="text-muted-foreground">Loading story...</p>
+      </div>
+    );
+  }
+
+  if (!chapter) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <p className="text-muted-foreground">Chapter not found</p>
       </div>
     );
   }
@@ -115,12 +138,33 @@ const StudentStoryReader = () => {
                     Back
                   </Button>
                   <h1 className="text-lg font-semibold text-foreground truncate">
-                    {story.title}
+                    {chapter.story_title || `Chapter ${chapter.index}`}
                   </h1>
                 </div>
 
-                {/* Right: Image size control */}
-                <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Right: Layout toggle and Image size control */}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  {/* Layout Toggle */}
+                  <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg border border-border/30">
+                    <Button
+                      variant={layoutMode === 'webtoon' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setLayoutMode('webtoon')}
+                      className="h-8"
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={layoutMode === 'grid' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setLayoutMode('grid')}
+                      className="h-8"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Image Size Slider */}
                   <ZoomIn className="w-4 h-4 text-muted-foreground" />
                   <div className="flex items-center gap-2 w-32">
                     <Slider
@@ -142,40 +186,69 @@ const StudentStoryReader = () => {
         )}
       </AnimatePresence>
 
-      {/* Story panels - clean vertical flow */}
-      <div className="pt-20 pb-8 flex flex-col items-center" style={{ width: `${imageScale}%`, margin: '0 auto' }}>
-        {panels.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No panels available for this story.</p>
-          </div>
-        ) : (
-          panels.map((panel) => (
-            <motion.div
-              key={panel.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="w-full"
-              style={{ display: 'block', lineHeight: 0 }}
-            >
-              {panel.image_url ? (
-                <img
-                  src={panel.image_url}
-                  alt={`Panel ${panel.panel_number}`}
-                  className="w-full h-auto block"
-                  loading="lazy"
-                  style={{ margin: 0, padding: 0, display: 'block' }}
-                />
-              ) : (
-                // Fallback for missing images
-                <div className="w-full aspect-[4/3] bg-gray-200 flex items-center justify-center">
-                  <span className="text-6xl">📚</span>
+      {/* Story panels - conditional layout based on mode */}
+      {layoutMode === 'webtoon' ? (
+        /* Webtoon format: vertical flow, zero gaps */
+        <div className="pt-20 flex flex-col items-center" style={{ width: `${imageScale}%`, margin: '0 auto' }}>
+          {panels.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="text-8xl mb-4">🔍</div>
+              <p className="text-muted-foreground text-lg">Looking for panels...</p>
+              <p className="text-muted-foreground text-sm mt-2">This story is still being generated.</p>
+            </div>
+          ) : (
+            panels
+              .sort((a, b) => a.index - b.index)
+              .map((panel) => (
+                <div
+                  key={panel.id}
+                  className="w-full"
+                  style={{ display: 'block', lineHeight: 0, margin: 0, padding: 0 }}
+                >
+                  <img
+                    src={panel.image}
+                    alt={`Panel ${panel.index}`}
+                    className="w-full h-auto block"
+                    loading="lazy"
+                    style={{ margin: 0, padding: 0, display: 'block' }}
+                  />
                 </div>
-              )}
-            </motion.div>
-          ))
-        )}
-      </div>
+              ))
+          )}
+        </div>
+      ) : (
+        /* Grid layout: responsive grid with direct images */
+        <div className="pt-20 container mx-auto px-4 pb-8">
+          {panels.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="text-8xl mb-4">🔍</div>
+              <p className="text-muted-foreground text-lg">Looking for panels...</p>
+              <p className="text-muted-foreground text-sm mt-2">This story is still being generated.</p>
+            </div>
+          ) : (
+            <div
+              className={`grid gap-4 ${imageScale <= 30 ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5' :
+                  imageScale <= 50 ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' :
+                    imageScale <= 80 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
+                      imageScale <= 120 ? 'grid-cols-1 md:grid-cols-2' :
+                        'grid-cols-1'
+                }`}
+            >
+              {panels
+                .sort((a, b) => a.index - b.index)
+                .map((panel) => (
+                  <img
+                    key={panel.id}
+                    src={panel.image}
+                    alt={`Panel ${panel.index}`}
+                    className="w-full h-auto"
+                    loading="lazy"
+                  />
+                ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

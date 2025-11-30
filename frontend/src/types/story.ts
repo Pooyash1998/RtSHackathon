@@ -1,13 +1,38 @@
 export interface Panel {
   id: string;
-  story_id: string;
-  panel_number: number;
-  image_url: string;
-  dialogue: string;
-  scene_description: string;
+  chapter_id: string;
+  index: number;
+  image: string;
   created_at: string;
 }
 
+export interface Chapter {
+  id: string;
+  classroom_id: string;
+  index: number;
+  chapter_outline: string;
+  original_prompt: string;
+  thumbnail_url: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface ChapterWithPanels extends Chapter {
+  panels: Panel[];
+}
+
+export interface ChapterPreview {
+  id: string;
+  index: number;
+  chapter_outline: string;
+  original_prompt: string;
+  created_at: string;
+  thumbnail_url: string | null;
+  classroom_name: string;
+  classroom_subject: string;
+}
+
+// Legacy Story types (kept for backwards compatibility with teacher components)
 export interface Story {
   id: string;
   classroom_id: string;

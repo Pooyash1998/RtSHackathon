@@ -12,6 +12,10 @@ src/educomic.egg-info/top_level.txt
 src/services/avatar.py
 src/services/chapter.py
 src/services/comic_creation.py
-src/services/flux_test.py
+src/services/story_idea.py
+src/services/test_story_idea.py
+src/services/thumbnail.py
+src/services/chapter.py
+src/services/comic_creation.py
 src/services/story_idea.py
 src/services/test_story_idea.py

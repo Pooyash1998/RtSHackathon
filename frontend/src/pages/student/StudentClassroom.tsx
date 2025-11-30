@@ -20,7 +20,7 @@ const StudentClassroom = () => {
   useEffect(() => {
     const fetchClassroomData = async () => {
       if (!classroomId) return;
-      
+
       setIsLoading(true);
       try {
         // Fetch classroom with students
@@ -32,8 +32,12 @@ const StudentClassroom = () => {
         // Fetch chapters (stories)
         const chaptersResponse = await api.classrooms.getChapters(classroomId);
         console.log("Chapters data:", chaptersResponse);
-        setChapters(chaptersResponse.chapters || []);
-        
+        // Sort by created_at descending (newest first)
+        const sortedChapters = (chaptersResponse.chapters || []).sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setChapters(sortedChapters);
+
       } catch (error) {
         console.error("Failed to fetch classroom data:", error);
         toast.error("Failed to load classroom");
@@ -156,13 +160,17 @@ const StudentClassroom = () => {
                 >
                   <Card className="backdrop-blur-lg bg-card/70 border-2 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl hover:scale-[1.02]">
                     <CardContent className="pt-6 space-y-4">
-                      <div className="w-full h-40 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg flex items-center justify-center border border-border/30">
-                        <span className="text-5xl">📚</span>
+                      <div className="w-full h-40 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg flex items-center justify-center border border-border/30 overflow-hidden">
+                        {chapter.thumbnail_url ? (
+                          <img src={chapter.thumbnail_url} alt={`Chapter ${chapter.index}`} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-5xl">📚</span>
+                        )}
                       </div>
 
                       <div>
                         <h3 className="text-xl font-bold text-foreground mb-2">
-                          Chapter {chapter.index}
+                          {chapter.story_title || `Chapter ${chapter.index}`}
                         </h3>
                         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                           {chapter.chapter_outline}

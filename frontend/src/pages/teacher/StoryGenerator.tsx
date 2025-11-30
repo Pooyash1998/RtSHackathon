@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,14 @@ interface StoryOption {
   title: string;
   theme: string;
   summary: string;
+}
+
+interface Panel {
+  id: string;
+  chapter_id: string;
+  index: number;
+  image: string;
+  created_at: string;
 }
 
 const mockStoryOptions: StoryOption[] = [
@@ -45,11 +53,15 @@ const StoryGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [storyOptions, setStoryOptions] = useState<StoryOption[]>([]);
   const [selectedStory, setSelectedStory] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [classroom, setClassroom] = useState<{ name: string; subject: string; grade_level: string } | null>(null);
   const [thumbnails, setThumbnails] = useState<Map<string, string | null>>(new Map());
   const [isGeneratingThumbnails, setIsGeneratingThumbnails] = useState(false);
+  const [panels, setPanels] = useState<Panel[]>([]);
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollAttempts = useRef(0);
+  const maxPollAttempts = 300; // 5 minutes at 1 second intervals
 
   // Fetch classroom data on mount
   useEffect(() => {
@@ -70,6 +82,76 @@ const StoryGenerator = () => {
     }
   }, [classroomId]);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const pollPanelsProgress = async () => {
+    if (!chapterId) return;
+
+    try {
+      const response = await api.chapters.getById(chapterId);
+      if (response.success && response.chapter) {
+        const chapterPanels = response.chapter.panels || [];
+        setPanels(chapterPanels);
+
+        // Check if generation is complete
+        if (response.chapter.status === 'ready') {
+          setIsPolling(false);
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+          }
+          toast.success("Story chapter created!");
+          setTimeout(() => {
+            navigate(`/teacher/classroom/${classroomId}`);
+          }, 1000);
+        }
+      }
+
+      pollAttempts.current += 1;
+
+      // Timeout after max attempts
+      if (pollAttempts.current >= maxPollAttempts) {
+        setIsPolling(false);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        toast.error("Generation is taking longer than expected. You can check back later.");
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
+      pollAttempts.current += 1;
+
+      // Stop after too many errors
+      if (pollAttempts.current >= 10) {
+        setIsPolling(false);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+        toast.error("Lost connection to server. Generation may still be in progress.");
+      }
+    }
+  };
+
+  const startPolling = () => {
+    setIsPolling(true);
+    pollAttempts.current = 0;
+    setPanels([]);
+
+    // Initial poll
+    pollPanelsProgress();
+
+    // Poll every 2 seconds
+    pollingIntervalRef.current = setInterval(() => {
+      pollPanelsProgress();
+    }, 2000);
+  };
+
   const generateOptions = async () => {
     if (!classroomId) {
       toast.error("No classroom selected");
@@ -81,7 +163,7 @@ const StoryGenerator = () => {
       // Start chapter and generate story options
       const response = await api.story.startChapter(classroomId, lessonInput);
       console.log("Chapter started:", response.chapter);
-      
+
       setChapterId(response.chapter.id);
       const options = response.chapter.story_ideas || [];
       setStoryOptions(options);
@@ -122,39 +204,26 @@ const StoryGenerator = () => {
 
     setSelectedStory(storyId);
     setStep(3);
-    
+
     try {
       // Get the thumbnail URL for the selected story
       const thumbnailUrl = thumbnails.get(storyId) || undefined;
-      
+
       // Save the chosen idea to the database with thumbnail
       await api.story.chooseIdea(chapterId, storyId, thumbnailUrl);
       console.log("Idea chosen:", storyId, "with thumbnail:", thumbnailUrl);
-      
-      // Simulate generation progress
-      simulateGeneration();
-    } catch (error) {
-      console.error("Failed to choose idea:", error);
-      toast.error("Failed to save story choice");
-      // Continue with simulation anyway for demo
-      simulateGeneration();
-    }
-  };
 
-  const simulateGeneration = () => {
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 5;
-      setProgress(currentProgress);
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          toast.success("Story chapter created!");
-          // Navigate back to classroom
-          navigate(`/teacher/classroom/${classroomId}`);
-        }, 500);
-      }
-    }, 200);
+      // Start the comic generation in the background
+      await api.story.commitChapter(chapterId, storyId);
+      console.log("Comic generation started");
+
+      // Start polling for panels
+      startPolling();
+    } catch (error) {
+      console.error("Failed to start comic generation:", error);
+      toast.error("Failed to start comic generation");
+      setStep(2); // Go back to selection
+    }
   };
 
   return (
@@ -200,7 +269,7 @@ const StoryGenerator = () => {
                   </div>
                 </div>
 
-                <Button 
+                <Button
                   onClick={generateOptions}
                   disabled={!lessonInput || isGenerating}
                   className="w-full"
@@ -234,7 +303,7 @@ const StoryGenerator = () => {
                 {storyOptions.map((option) => {
                   const thumbnail = thumbnails.get(option.id);
                   return (
-                    <Card 
+                    <Card
                       key={option.id}
                       className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02] border-2 hover:border-primary"
                       onClick={() => selectStory(option.id)}
@@ -242,8 +311,8 @@ const StoryGenerator = () => {
                       <CardContent className="pt-6 space-y-4">
                         {thumbnail ? (
                           <div className="w-full aspect-square rounded-lg overflow-hidden bg-muted">
-                            <img 
-                              src={thumbnail} 
+                            <img
+                              src={thumbnail}
                               alt={option.title}
                               className="w-full h-full object-cover"
                             />
@@ -277,28 +346,37 @@ const StoryGenerator = () => {
                     Generating your personalized graphic novel...
                   </h2>
                   <p className="text-muted-foreground">
-                    {Math.floor(progress / 5)} of 20 panels completed
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Progress value={progress} className="h-3" />
-                  <p className="text-sm text-muted-foreground text-center">
-                    Estimated time remaining: {Math.max(0, 40 - Math.floor(progress / 2.5))} seconds
+                    {panels.length} panel{panels.length !== 1 ? 's' : ''} completed
                   </p>
                 </div>
 
+                {panels.length > 0 && (
+                  <div className="space-y-2">
+                    <Progress value={(panels.length / 12) * 100} className="h-3" />
+                    <p className="text-sm text-muted-foreground text-center">
+                      This may take a few minutes...
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div 
-                      key={i}
-                      className={`aspect-square rounded-lg ${
-                        i < progress / 12.5 
-                          ? 'bg-primary/20' 
-                          : 'bg-muted animate-pulse'
-                      }`}
-                    />
+                  {panels.map((panel) => (
+                    <div
+                      key={panel.id}
+                      className="aspect-square rounded-lg overflow-hidden bg-primary/20 shadow-md"
+                    >
+                      <img
+                        src={panel.image}
+                        alt={`Panel ${panel.index}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                   ))}
+                  {isPolling && (
+                    <div className="aspect-square rounded-lg bg-muted animate-pulse flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

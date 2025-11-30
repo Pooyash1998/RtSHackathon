@@ -20,24 +20,35 @@ const StudentDashboard = () => {
   useEffect(() => {
     const fetchStudentData = async () => {
       if (!studentId) return;
-      
+
       setIsLoading(true);
       try {
         // Fetch student data with their classrooms from API
         const response = await api.students.getById(studentId);
-        
+
         console.log("Student data fetched:", response);
-        
+
         setStudent(response.student);
         setClassrooms(response.classrooms || []);
-        
-        // TODO: Fetch newest story when story API is ready
-        setNewestStory(null);
-        
+
+        // Fetch the newest chapter across all classrooms
+        try {
+          const chaptersResponse = await api.students.getChapters(studentId);
+          const allChapters = chaptersResponse.chapters || [];
+
+          // Get the most recent chapter (already sorted by created_at desc from API)
+          if (allChapters.length > 0) {
+            setNewestStory(allChapters[0]);
+          }
+        } catch (chapterError) {
+          console.error("Failed to fetch chapters:", chapterError);
+          // Continue without newest story
+        }
+
       } catch (error) {
         console.error("Failed to fetch student data:", error);
         toast.error("Failed to load student data");
-        
+
         // Fallback for development
         setStudent({
           id: studentId,
@@ -117,26 +128,35 @@ const StudentDashboard = () => {
           >
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-primary" />
-              <h2 className="text-2xl font-bold text-foreground">Newest Story</h2>
+              <h2 className="text-2xl font-bold text-foreground">Latest Chapter</h2>
             </div>
             <Card className="backdrop-blur-lg bg-card/70 border-border/50 hover:bg-card/80 transition-all hover:shadow-xl overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex flex-col md:flex-row">
-                  <div className="w-full md:w-48 h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center border-b md:border-b-0 md:border-r border-border/30">
-                    <span className="text-6xl">📚</span>
+                  <div className="w-full md:w-48 h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center border-b md:border-b-0 md:border-r border-border/30 overflow-hidden">
+                    {newestStory.thumbnail_url ? (
+                      <img src={newestStory.thumbnail_url} alt="Story thumbnail" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-6xl">📚</span>
+                    )}
                   </div>
                   <div className="flex-1 p-6 space-y-4">
                     <div>
                       <h3 className="text-2xl font-bold text-foreground mb-2">
-                        {newestStory.title}
+                        {newestStory.story_title || `Chapter ${newestStory.index}`}
                       </h3>
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                        {newestStory.chapter_outline || newestStory.original_prompt}
+                      </p>
                       <div className="flex gap-2 flex-wrap">
                         <Badge className="bg-green-500/80 text-white backdrop-blur-sm">
                           New
                         </Badge>
-                        <Badge variant="outline">
-                          {newestStory.design_style}
-                        </Badge>
+                        {newestStory.classroom_name && (
+                          <Badge variant="outline">
+                            {newestStory.classroom_name}
+                          </Badge>
+                        )}
                         <Badge variant="outline">
                           {new Date(newestStory.created_at).toLocaleDateString()}
                         </Badge>
