@@ -35,7 +35,7 @@ async def generate_story_thumbnail(title: str, summary: str) -> Optional[str]:
         async with httpx.AsyncClient(timeout=60.0) as client:
             # Start generation
             response = await client.post(
-                f"{FLUX_API_URL}/flux-2-flex",
+                f"{FLUX_API_URL}/flux-pro-1.1",
                 headers={
                     "Content-Type": "application/json",
                     "X-Key": BLACK_FOREST_API_KEY,

@@ -52,7 +52,7 @@ BFL_API_KEY = os.getenv("BFL_API_KEY") or os.getenv(
 )
 BFL_API_BASE = os.getenv("BFL_API_BASE", "https://api.bfl.ai")
 
-BFL_MODEL_ENDPOINT = os.getenv("BFL_MODEL_ENDPOINT", "flux-2-flex")
+BFL_MODEL_ENDPOINT = os.getenv("BFL_MODEL_ENDPOINT", "flux-2-pro")
 
 SUPABASE_IMAGES_BUCKET = os.getenv("SUPABASE_IMAGES_BUCKET")
 
