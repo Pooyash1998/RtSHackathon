@@ -56,6 +56,45 @@ async def health_check():
     }
 
 
+@app.post("/classrooms")
+async def create_classroom_endpoint(
+    name: str = Query(...),
+    subject: str = Query(...),
+    grade_level: str = Query(...),
+    story_theme: str = Query(...),
+    design_style: str = Query(...),
+):
+    """
+    Create a new classroom.
+
+    Args:
+        name: Classroom name
+        subject: Subject being taught
+        grade_level: Grade level
+        story_theme: Theme for stories
+        design_style: Visual design style
+
+    Returns:
+        Created classroom record
+    """
+    from database.database import create_classroom
+
+    try:
+        classroom = create_classroom(
+            name=name,
+            subject=subject,
+            grade_level=grade_level,
+            story_theme=story_theme,
+            design_style=design_style,
+            duration="6 months",
+        )
+        return {"success": True, "classroom": classroom}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create classroom: {str(e)}"
+        )
+
+
 @app.get("/classrooms")
 async def get_classrooms():
     """
@@ -893,9 +932,12 @@ async def start_chapter_endpoint(classroom_id: str, lesson_prompt: str = Query(.
 
         students = get_students_by_classroom(classroom_id)
 
-        # Get next chapter index
+        # Get next chapter index - use max index + 1 to handle gaps
         existing_chapters = get_chapters_by_classroom(classroom_id)
-        next_index = len(existing_chapters) + 1
+        if existing_chapters:
+            next_index = max(ch.get("index", 0) for ch in existing_chapters) + 1
+        else:
+            next_index = 1
 
         # Generate story ideas
         story_ideas = generate_story_ideas(classroom, students, lesson_prompt)

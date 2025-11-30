@@ -14,12 +14,16 @@ async function apiFetch<T>(
   const url = `${API_BASE_URL}${endpoint}`;
 
   try {
+    const headers: HeadersInit = { ...options?.headers };
+
+    // Only add Content-Type if not already set and if there's a body
+    if (!headers['Content-Type'] && options?.body && typeof options.body === 'string') {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -45,6 +49,36 @@ export const api = {
 
   // Classrooms
   classrooms: {
+    create: (data: {
+      name: string;
+      subject: string;
+      grade_level: string;
+      story_theme: string;
+      design_style: string;
+    }) =>
+      apiFetch<{
+        success: boolean;
+        classroom: {
+          id: string;
+          name: string;
+          subject: string;
+          grade_level: string;
+          story_theme: string;
+          design_style: string;
+          created_at: string;
+        };
+      }>(
+        `/classrooms?` +
+        `name=${encodeURIComponent(data.name)}` +
+        `&subject=${encodeURIComponent(data.subject)}` +
+        `&grade_level=${encodeURIComponent(data.grade_level)}` +
+        `&story_theme=${encodeURIComponent(data.story_theme)}` +
+        `&design_style=${encodeURIComponent(data.design_style)}`,
+        {
+          method: 'POST',
+        }
+      ),
+
     getAll: () =>
       apiFetch<{
         success: boolean;

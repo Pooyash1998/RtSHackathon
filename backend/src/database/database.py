@@ -26,6 +26,43 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ============================================
 
 
+def create_classroom(
+    name: str,
+    subject: str,
+    grade_level: str,
+    story_theme: str,
+    design_style: str,
+    duration: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Create a new classroom.
+
+    Args:
+        name: Classroom name
+        subject: Subject being taught
+        grade_level: Grade level
+        story_theme: Theme for stories
+        design_style: Visual design style
+        duration: Optional duration/semester
+
+    Returns:
+        Created classroom record
+    """
+    data = {
+        "name": name,
+        "subject": subject,
+        "grade_level": grade_level,
+        "story_theme": story_theme,
+        "design_style": design_style,
+    }
+
+    if duration:
+        data["duration"] = duration
+
+    response = supabase.table("classrooms").insert(data).execute()
+    return response.data[0] if response.data else None
+
+
 def get_classroom(classroom_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a classroom by ID.

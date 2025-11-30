@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -32,7 +33,7 @@ const CreateClassroom = () => {
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState<MaterialFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     subject: "",
@@ -70,13 +71,13 @@ const CreateClassroom = () => {
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Only set isDragging to false if we're leaving the drop zone entirely
     // Check if the related target is outside the drop zone
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-    
+
     if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
       setIsDragging(false);
     }
@@ -89,7 +90,7 @@ const CreateClassroom = () => {
 
     const droppedFiles = Array.from(e.dataTransfer.files);
     const pdfFiles = droppedFiles.filter(file => file.type === 'application/pdf');
-    
+
     if (pdfFiles.length !== droppedFiles.length) {
       toast.error("Only PDF files are allowed");
     }
@@ -115,9 +116,38 @@ const CreateClassroom = () => {
     setFiles(updatedFiles);
   };
 
-  const handleSubmit = () => {
-    toast.success("Classroom created successfully!");
-    navigate("/teacher/dashboard");
+  const handleSubmit = async () => {
+    try {
+      // Create classroom
+      const classroomData = {
+        name: formData.name,
+        subject: formData.subject,
+        grade_level: formData.grade,
+        story_theme: formData.customTheme,
+        design_style: formData.style
+      };
+
+      const response = await api.classrooms.create(classroomData);
+      const classroomId = response.classroom.id;
+
+      // Upload materials if any
+      if (files.length > 0) {
+        for (const materialFile of files) {
+          await api.classrooms.uploadMaterial(
+            classroomId,
+            materialFile.file,
+            materialFile.title,
+            materialFile.description || undefined
+          );
+        }
+      }
+
+      toast.success("Classroom created successfully!");
+      navigate("/teacher/dashboard");
+    } catch (error) {
+      console.error("Failed to create classroom:", error);
+      toast.error("Failed to create classroom. Please try again.");
+    }
   };
 
   return (
@@ -143,7 +173,7 @@ const CreateClassroom = () => {
                 Step {step} of 3
               </div>
               <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-primary transition-all duration-300"
                   style={{ width: `${(step / 3) * 100}%` }}
                 />
@@ -161,13 +191,13 @@ const CreateClassroom = () => {
                       id="name"
                       placeholder="e.g., Physics 101"
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="subject">Subject *</Label>
-                    <Select value={formData.subject} onValueChange={(value) => setFormData({...formData, subject: value})}>
+                    <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select subject" />
                       </SelectTrigger>
@@ -184,7 +214,7 @@ const CreateClassroom = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="grade">Grade Level *</Label>
-                    <Select value={formData.grade} onValueChange={(value) => setFormData({...formData, grade: value})}>
+                    <Select value={formData.grade} onValueChange={(value) => setFormData({ ...formData, grade: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select grade" />
                       </SelectTrigger>
@@ -198,8 +228,8 @@ const CreateClassroom = () => {
                     </Select>
                   </div>
 
-                  <Button 
-                    onClick={() => setStep(2)} 
+                  <Button
+                    onClick={() => setStep(2)}
                     className="w-full"
                     disabled={!formData.name || !formData.subject || !formData.grade}
                   >
@@ -216,7 +246,7 @@ const CreateClassroom = () => {
                       id="customTheme"
                       placeholder="e.g., Space Adventure, Mystery Detective, Time Travel"
                       value={formData.customTheme}
-                      onChange={(e) => setFormData({...formData, customTheme: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, customTheme: e.target.value })}
                     />
                     <p className="text-xs text-muted-foreground">
                       Enter a custom theme for your story generation (e.g., Space Adventure, Historical Fiction, Fantasy Quest)
@@ -229,10 +259,9 @@ const CreateClassroom = () => {
                       {styles.map((style) => (
                         <Card
                           key={style.id}
-                          className={`cursor-pointer transition-all hover:shadow-md ${
-                            formData.style === style.id ? 'border-primary border-2' : ''
-                          }`}
-                          onClick={() => setFormData({...formData, style: style.id})}
+                          className={`cursor-pointer transition-all hover:shadow-md ${formData.style === style.id ? 'border-primary border-2' : ''
+                            }`}
+                          onClick={() => setFormData({ ...formData, style: style.id })}
                         >
                           <CardContent className="pt-6 text-center">
                             <div className="text-sm font-medium">{style.name}</div>
@@ -246,8 +275,8 @@ const CreateClassroom = () => {
                     <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                       Back
                     </Button>
-                    <Button 
-                      onClick={() => setStep(3)} 
+                    <Button
+                      onClick={() => setStep(3)}
                       className="flex-1"
                       disabled={!formData.customTheme || !formData.style}
                     >
@@ -261,12 +290,11 @@ const CreateClassroom = () => {
                 <div className="space-y-6">
                   <div className="space-y-3">
                     <Label>Learning Materials (Optional)</Label>
-                    <div 
-                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
-                        isDragging 
-                          ? 'border-primary bg-primary/10 scale-[1.02]' 
-                          : 'border-muted-foreground/25 hover:border-primary/50'
-                      }`}
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${isDragging
+                        ? 'border-primary bg-primary/10 scale-[1.02]'
+                        : 'border-muted-foreground/25 hover:border-primary/50'
+                        }`}
                       onDragEnter={handleDragEnter}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
@@ -306,7 +334,7 @@ const CreateClassroom = () => {
                                   <X className="w-4 h-4" />
                                 </Button>
                               </div>
-                              
+
                               <div className="space-y-2">
                                 <Label htmlFor={`title-${index}`}>Material Title *</Label>
                                 <Input
