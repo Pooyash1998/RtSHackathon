@@ -4,11 +4,11 @@ nixPkgs = ["python310", "pip"]
 [phases.install]
 cmds = [
     "pip install uv",
-    "cd backend && uv sync"
+    "(cd backend && uv sync)"
 ]
 
 [phases.build]
 cmds = ["echo 'Build complete'"]
 
 [start]
-cmd = "cd backend && uv run uvicorn src.main:app --host 0.0.0.0 --port $PORT"
+cmd = "uvicorn backend.src.main:app --host 0.0.0.0 --port $PORT"

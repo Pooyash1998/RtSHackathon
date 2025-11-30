@@ -8,15 +8,16 @@ WORKDIR /app
 RUN pip install uv
 
 # Copy backend files
-COPY backend/pyproject.toml backend/uv.lock ./backend/
-COPY backend/src ./backend/src
+COPY backend ./backend
+
+# Change to backend directory
+WORKDIR /app/backend
 
 # Install dependencies
-WORKDIR /app/backend
 RUN uv sync
 
-# Expose port
+# Expose port (Railway will override with $PORT)
 EXPOSE 8000
 
-# Start command
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start command - Railway will inject $PORT
+CMD uv run uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}
