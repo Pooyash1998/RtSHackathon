@@ -2,6 +2,14 @@
 
 Transform classroom lessons into engaging, personalized graphic novels using AI. EduComic helps teachers create interactive educational comics that bring students into the story as characters.
 
+## 📸 Preview
+
+![EduComic Preview](https://github.com/user-attachments/assets/abf0426c-ccfa-437b-bddb-ca146a3e3450)
+
+### 🎥 Demo Video
+
+https://github.com/user-attachments/assets/f80641cc-d430-4fc0-b641-1929599f0249
+
 ## 🌟 Features
 
 - **AI-Powered Story Generation** - Create educational comics from lesson prompts using OpenAI
