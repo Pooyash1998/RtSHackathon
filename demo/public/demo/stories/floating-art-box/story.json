@@ -1,0 +1,35 @@
+{
+  "id": "floating-art-box",
+  "fictional": true,
+  "story_title": "Case of the Floating Art Box",
+  "story_description": "Four classmates use a ruler and pencil fulcrum to lift an art box safely.",
+  "teacher_material": {
+    "title": "Grade 5 Levers - Making Work Easier",
+    "subject": "Science",
+    "grade_level": "Grade 5"
+  },
+  "students": [
+    "Maya Rivers",
+    "Leo Martinez",
+    "Amara Johnson",
+    "Noah Chen"
+  ],
+  "learning_objectives": [
+    "Identify the effort, load, and fulcrum in a lever",
+    "Compare how fulcrum position changes effort and movement"
+  ],
+  "panels": [
+    { "index": 1, "image": "panels/panel-01.png", "dialogue": [{ "speaker": "Maya Rivers", "text": "Our art box needs a no-hands lift!" }] },
+    { "index": 2, "image": "panels/panel-02.png", "dialogue": [{ "speaker": "Leo Martinez", "text": "Could a ruler lift it safely?" }] },
+    { "index": 3, "image": "panels/panel-03.png", "dialogue": [{ "speaker": "Amara Johnson", "text": "This pencil can be our fulcrum." }] },
+    { "index": 4, "image": "panels/panel-04.png", "dialogue": [{ "speaker": "Noah Chen", "text": "The ruler pivots on the fulcrum." }] },
+    { "index": 5, "image": "panels/panel-05.png", "dialogue": [{ "speaker": "Maya Rivers", "text": "Farther fulcrum means less pushing, I predict." }] },
+    { "index": 6, "image": "panels/panel-06.png", "dialogue": [{ "speaker": "Leo Martinez", "text": "This push feels fairly strong." }] },
+    { "index": 7, "image": "panels/panel-07.png", "dialogue": [{ "speaker": "Noah Chen", "text": "The effort end moved only a little." }] },
+    { "index": 8, "image": "panels/panel-08.png", "dialogue": [{ "speaker": "Amara Johnson", "text": "Now the fulcrum is closer." }] },
+    { "index": 9, "image": "panels/panel-09.png", "dialogue": [{ "speaker": "Maya Rivers", "text": "This time, lifting needs less effort!" }] },
+    { "index": 10, "image": "panels/panel-10.png", "dialogue": [{ "speaker": "Leo Martinez", "text": "But my effort end traveled farther." }] },
+    { "index": 11, "image": "panels/panel-11.png", "dialogue": [{ "speaker": "Noah Chen", "text": "Closer fulcrum gives greater mechanical advantage." }] },
+    { "index": 12, "image": "panels/panel-12.png", "dialogue": [{ "speaker": "Amara Johnson", "text": "Less effort, farther movement, safer lifting!" }] }
+  ]
+}

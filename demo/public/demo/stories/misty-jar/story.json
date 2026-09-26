@@ -1,0 +1,282 @@
+{
+  "id": "misty-jar",
+  "fictional": true,
+  "story_title": "The Mystery of the Misty Jar",
+  "story_description": "Eight classmates investigate droplets on a cold jar and connect condensation to clouds and rain.",
+  "teacher_material": {
+    "title": "How clouds make rain",
+    "subject": "Science",
+    "grade_level": "Grade 5"
+  },
+  "students": [
+    "Maya Rivers",
+    "Leo Martinez",
+    "Amara Johnson",
+    "Noah Chen",
+    "Sophie Miller",
+    "Eli Williams",
+    "Priya Shah",
+    "Finn Murphy"
+  ],
+  "learning_objectives": [
+    "Observe and explain condensation on a cold surface",
+    "Connect condensation to how clouds and rain form"
+  ],
+  "panels": [
+    {
+      "index": 1,
+      "image": "panels/panel-01.png",
+      "setting": "Grade 5 science classroom",
+      "description": "Teacher stands on the left and places a clear open jar filled halfway with ice water onto a completely dry metal tray. Maya stands on the right and watches. The jar exterior is dry with no droplets yet. Leave upper-left space for Teacher's bubble and upper-right space for Maya's bubble.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Teacher",
+          "text": "WATCH THE OUTSIDE OF THIS COLD JAR."
+        },
+        {
+          "speaker": "Maya Rivers",
+          "text": "LET'S FIND OUT WHAT CHANGES."
+        }
+      ],
+      "featured_students": [
+        "Maya Rivers"
+      ]
+    },
+    {
+      "index": 2,
+      "image": "panels/panel-02.png",
+      "setting": "Same science table a few minutes later",
+      "description": "The open jar is centered on the dry tray with ice inside and many small liquid droplets on the outside glass only. Leo leans toward it from the left. Priya observes from the right with a pencil above a notebook containing only a simple sketch. Leave separate upper spaces for their bubbles.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Leo Martinez",
+          "text": "DROPS ARE FORMING ON THE OUTSIDE!"
+        },
+        {
+          "speaker": "Priya Shah",
+          "text": "BUT NOBODY POURED WATER THERE."
+        }
+      ],
+      "featured_students": [
+        "Leo Martinez",
+        "Priya Shah"
+      ]
+    },
+    {
+      "index": 3,
+      "image": "panels/panel-03.png",
+      "setting": "Science table beside the sealed cold jar",
+      "description": "Maya stands on the left and points to a spotless dry silver tray. Noah stands on the right and looks closely at the same open jar. The jar is centered with ice water inside and small droplets outside. The tray is clean, dry, and reflective with no liquid, puddle, dirt, or debris. Show one jar only: no second container, glass box, barrier, wall, lid, crack, or leak.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Maya Rivers",
+          "text": "THE TRAY IS DRY. NOTHING SPILLED."
+        },
+        {
+          "speaker": "Noah Chen",
+          "text": "DID WATER PASS THROUGH THE GLASS?"
+        }
+      ],
+      "featured_students": [
+        "Maya Rivers",
+        "Noah Chen"
+      ]
+    },
+    {
+      "index": 4,
+      "image": "panels/panel-04.png",
+      "setting": "Close view of the cold jar experiment",
+      "description": "Sophie stands on the left, finishing wiping the jar exterior with a dry white cloth. Sophie has her reference appearance: blonde chin-length bob, blue hair clip, blue eyes, and denim jacket. Eli stands on the right and points to fresh tiny liquid droplets reappearing on the newly dried outside glass. Eli has his reference appearance: medium-brown skin, short black curly hair, and green hoodie. The open jar remains on its clean dry tray. Leave separate upper spaces for their bubbles.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Sophie Miller",
+          "text": "I WIPED THE OUTSIDE DRY."
+        },
+        {
+          "speaker": "Eli Williams",
+          "text": "NEW DROPS ARE ALREADY FORMING!"
+        }
+      ],
+      "featured_students": [
+        "Sophie Miller",
+        "Eli Williams"
+      ]
+    },
+    {
+      "index": 5,
+      "image": "panels/panel-05.png",
+      "setting": "Grade 5 science classroom beside the cold jar",
+      "description": "Teacher stands on the left, gestures toward the surrounding air, and matches the canonical adult teacher reference exactly. Teacher is age 35-40 with adult facial and body proportions and appears at least 25 percent taller than Priya. Priya stands on the right with her eye line below the teacher's shoulder and looks from the air back to the exterior droplets. Priya has unmistakable 10-11-year-old child proportions and her reference appearance: long straight black hair, pink headband, brown eyes, and pink sweater. Do not swap their sides, identities, ages, scale, or dialogue. The open cold jar remains on its clean dry tray. The background board is blank. Leave upper-left space for Teacher's bubble and upper-right space for Priya's bubble.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Teacher",
+          "text": "AIR CONTAINS INVISIBLE WATER VAPOR."
+        },
+        {
+          "speaker": "Priya Shah",
+          "text": "SO THE WATER CAME FROM THE AIR!"
+        }
+      ],
+      "featured_students": [
+        "Priya Shah"
+      ]
+    },
+    {
+      "index": 6,
+      "image": "panels/panel-06.png",
+      "setting": "Close classroom view of the cold jar",
+      "description": "Teacher stands on the left and matches the canonical adult teacher reference exactly. Maya stands on the right and has her reference appearance: 10-11-year-old child with brown high ponytail, yellow jacket, and blue shirt. The open cold jar is centered between them. A simple wordless diagram uses thin arrows from nearby air toward the cold glass and shows liquid droplets appearing on the outside only. Teacher points to the arrows; Maya points to the droplets.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Teacher",
+          "text": "THE COLD JAR COOLS NEARBY AIR."
+        },
+        {
+          "speaker": "Maya Rivers",
+          "text": "THE VAPOR CONDENSES INTO LIQUID DROPS!"
+        }
+      ],
+      "featured_students": [
+        "Maya Rivers"
+      ]
+    },
+    {
+      "index": 7,
+      "image": "panels/panel-07.png",
+      "setting": "Classroom window overlooking a sunny lake",
+      "description": "Noah stands on the left with his reference appearance: 10-11-year-old child with short black hair, blue rectangular glasses, and navy-and-white shirt. He gestures toward sunlight warming the lake. Amara stands on the right with her reference appearance: equal-size 10-11-year-old child with dark-brown skin, two curly hair puffs, striped shirt, and denim overalls. She traces thin wordless diagram arrows rising from the water. Do not swap their sides, identities, scale, or dialogue. Show no jar, adult, extra person, or visible steam cloud. Leave separate upper spaces for their bubbles.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Noah Chen",
+          "text": "SUNLIGHT WARMS WATER IN LAKES."
+        },
+        {
+          "speaker": "Amara Johnson",
+          "text": "SOME LIQUID WATER EVAPORATES INTO VAPOR."
+        }
+      ],
+      "featured_students": [
+        "Noah Chen",
+        "Amara Johnson"
+      ]
+    },
+    {
+      "index": 8,
+      "image": "panels/panel-08.png",
+      "setting": "Classroom window with a clear view of the sky",
+      "description": "Finn stands on the left with his reference appearance: 10-11-year-old child with curly red hair, green eyes, freckles, and green plaid overshirt. Sophie stands on the right with her reference appearance: equal-size 10-11-year-old child with blonde chin-length bob, blue hair clip, blue eyes, and denim jacket. Outside, a wordless diagram shows warm air rising from low in the scene toward cooler blue sky using thin upward arrows and a gentle warm-to-cool color change. Do not swap their sides, identities, scale, or dialogue. Finn is not an adult or teacher. Show no extra person.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Finn Murphy",
+          "text": "WARM, MOIST AIR RISES."
+        },
+        {
+          "speaker": "Sophie Miller",
+          "text": "HIGHER UP, THE AIR IS COLDER."
+        }
+      ],
+      "featured_students": [
+        "Finn Murphy",
+        "Sophie Miller"
+      ]
+    },
+    {
+      "index": 9,
+      "image": "panels/panel-09.png",
+      "setting": "Classroom window showing one puffy cloud",
+      "description": "Priya stands on the left with her reference appearance: 10-11-year-old child with long straight black hair, pink headband, brown eyes, and pink sweater. Leo stands on the right with his reference appearance: equal-size 10-11-year-old child with tousled brown hair, brown eyes, and navy hoodie. They point toward one puffy cloud. A simple circular magnified inset contains many separate tiny liquid droplets without words. Do not swap their sides, identities, scale, or dialogue. Show no adult or extra person. Leave separate upper spaces for their bubbles.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Priya Shah",
+          "text": "COOLING VAPOR CONDENSES INTO TINY DROPLETS."
+        },
+        {
+          "speaker": "Leo Martinez",
+          "text": "MANY TINY DROPLETS FORM A CLOUD."
+        }
+      ],
+      "featured_students": [
+        "Priya Shah",
+        "Leo Martinez"
+      ]
+    },
+    {
+      "index": 10,
+      "image": "panels/panel-10.png",
+      "setting": "Science classroom beside a large wordless weather diagram",
+      "description": "Eli stands on the left with his reference appearance: 10-11-year-old child with medium-brown skin, short black curly hair, and green hoodie. He points to tiny cloud droplets colliding and combining into larger drops. Sophie stands on the right with her reference appearance: equal-size 10-11-year-old child with blonde chin-length bob, blue hair clip, blue eyes, and denim jacket. She points to the larger drops falling beneath the cloud as rain. Use a clear wordless left-to-right diagram. Do not swap their sides, identities, scale, or dialogue. Show no adult, extra person, or diagram labels. Leave separate upper spaces for their bubbles.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Eli Williams",
+          "text": "CLOUD DROPLETS COLLIDE AND GROW."
+        },
+        {
+          "speaker": "Sophie Miller",
+          "text": "HEAVY DROPS FALL TO EARTH AS RAIN."
+        }
+      ],
+      "featured_students": [
+        "Eli Williams",
+        "Sophie Miller"
+      ]
+    },
+    {
+      "index": 11,
+      "image": "panels/panel-11.png",
+      "setting": "Classroom table with four picture cards",
+      "description": "Amara sits on the left with her reference appearance: 10-11-year-old child with dark-brown skin, two curly hair puffs, striped shirt, and denim overalls. Finn sits on the right with his reference appearance: equal-size 10-11-year-old child with curly red hair, green eyes, freckles, and green plaid overshirt. They arrange exactly four picture-only cards from left to right: sunlight over a lake, thin arrows rising from water, a forming cloud, and falling rain. Amara points to the first two cards and Finn points to the last two. Do not swap their sides, identities, scale, or dialogue. Finn is not an adult or teacher. Show no extra person, words, numbers, or labels on the cards.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Amara Johnson",
+          "text": "FIRST, WATER EVAPORATES AND RISES."
+        },
+        {
+          "speaker": "Finn Murphy",
+          "text": "THEN IT COOLS, CONDENSES, AND RAINS."
+        }
+      ],
+      "featured_students": [
+        "Amara Johnson",
+        "Finn Murphy"
+      ]
+    },
+    {
+      "index": 12,
+      "image": "panels/panel-12.png",
+      "setting": "Celebratory class group portrait behind the science table",
+      "description": "Show exactly eight children in a compact two-row class portrait, with equal head size and equal 10-11-year-old child proportions. Back row left to right: Leo with brown hair and navy hoodie; Amara with two curly hair puffs and denim overalls; Sophie with blonde bob and denim jacket; Priya with long black hair, pink headband, and pink sweater. Front row left to right: Maya with brown high ponytail and yellow jacket; Noah with short black hair, blue glasses, and navy-and-white shirt; Eli with black curly hair and green hoodie; Finn with curly red hair and green plaid overshirt. All eight faces and upper bodies are visible and distinct. Do not duplicate, omit, merge, age up, resize, or reorder anyone. The open cold jar sits below the front row; a window shows one cloud and gentle rain. Only Maya and Noah have speech bubbles.",
+      "narration": "",
+      "dialogue": [
+        {
+          "speaker": "Maya Rivers",
+          "text": "THE JAR SHOWED US CONDENSATION."
+        },
+        {
+          "speaker": "Noah Chen",
+          "text": "NOW WE CAN EXPLAIN CLOUDS AND RAIN!"
+        }
+      ],
+      "featured_students": [
+        "Leo Martinez",
+        "Amara Johnson",
+        "Sophie Miller",
+        "Priya Shah",
+        "Maya Rivers",
+        "Noah Chen",
+        "Eli Williams",
+        "Finn Murphy"
+      ]
+    }
+  ]
+}

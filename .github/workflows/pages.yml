@@ -1,0 +1,51 @@
+name: Deploy public demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "demo/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: demo/package-lock.json
+      - uses: actions/configure-pages@v5
+      - working-directory: demo
+        run: npm ci
+      - working-directory: demo
+        run: npm run build:demo
+      - name: Verify demo artifact is offline
+        run: |
+          ! grep -R -E 'OPENAI_API_KEY|BFL_API_KEY|SUPABASE_KEY|service_role|127\.0\.0\.1:8000|api\.bfl\.ai|api\.openai\.com|sk-[A-Za-z0-9_-]{20,}' demo/dist
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: demo/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
